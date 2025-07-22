@@ -101,6 +101,12 @@ uniform float uSpecularPower
 //-------------------------------------------------------------------------------------
 // SUBSURFACE
 
+uniform bool uSubsurfaceEnabled
+<
+    string UIGroup = "Subsurface";
+    string UIName = "Enable Subsurface";
+> = false;
+
 uniform vec4 uSubsurfaceColor
 <
     string UIGroup = "Subsurface";
@@ -394,11 +400,17 @@ GLSLShader FS
         
         //DIFFUSE LIGHTING
         float diffuse = dot(lightDir, worldNormal) * (1 - uSubsurfaceSpread) + uSubsurfaceSpread;
-        
+        vec4 totalDiffuse;
+
         //Subsurface 
-        vec4 diffuseSubsurface = clamp((vec4(diffuse, diffuse, diffuse, 1.0) + uSubsurfaceColor), 0.0, 1.0);
-        vec4 totalDiffuse = diffuseSub * uDiffuseColor;
-        
+        if (uSubsurfaceEnabled) {
+            vec4 diffuseSubsurface = clamp((vec4(diffuse, diffuse, diffuse, 1.0) + uSubsurfaceColor), 0.0, 1.0);
+            totalDiffuse = diffuseSubsurface * uDiffuseColor;
+        }
+        else {
+            totalDiffuse = diffuse * uDiffuseColor;
+        }
+
         if (length(vec3(diffuseTex.xyz)) > 0) {
             totalDiffuse *= diffuseTex;
         }
