@@ -1,0 +1,455 @@
+#undef USE_LIGHT_BINDING
+
+//###################################################################
+// MATRICES
+//
+// Matrices coming from application (Maya)
+//###################################################################
+
+uniform mat4 WorldViewProjection : WorldViewProjection < string UIWidget="None"; >;
+uniform mat4 WorldInverseTranspose : WorldInverseTranspose < string UIWidget="None"; >;
+uniform mat4 ViewInverse : ViewInverse < string UIWidget="None"; >;
+uniform mat4 World : World < string UIWidget="None"; >;
+
+//###################################################################
+// PARAMETERS
+//
+// 
+//###################################################################
+
+//Animation time
+uniform float time : Time;
+
+//-------------------------------------------------------------------------------------
+// DIRECTIONAL LIGHT
+
+uniform vec3 uLightDirection : DIRECTION <
+    string UIGroup = "Lights"; 
+    string Object = "DirectionalLight0";
+    string UIName =  "Light Direction";
+    string Space = "World";
+> = {0.0f, 1.0f, 0.0f};
+//-------------------------------------------------------------------------------------
+// AMBIENT LIGHT
+uniform vec4 uAmbientTopColor
+<   
+    string UIGroup = "Lights";
+    string UIName = "Ambient Top Color";
+	string UIWidget = "Color";
+> = {0.0, 0.0, 0.0, 1.0};
+
+uniform vec4 uAmbientBottomColor
+<   
+    string UIGroup = "Lights";
+    string UIName = "Ambient Bottom Color";
+	string UIWidget = "Color";
+> = {0.0, 0.0, 0.0, 1.0};
+
+//-------------------------------------------------------------------------------------
+// DIFFUSE
+
+uniform float uDiffuseStrength 
+<
+    string UIGroup = "Diffuse";
+	string UIWidget = "slider";
+	string UIName = "Diffuse Strength";
+	float UIMin = 0;
+	float UIMax = 1;
+> = 0.6;
+
+uniform vec4 uDiffuseColor
+<   
+    string UIGroup = "Diffuse";
+    string UIName = "Diffuse Color";
+	string UIWidget = "Color";
+> = {1.0, 1.0, 1.0, 1.0};
+
+//-------------------------------------------------------------------------------------
+// SPECULARITY
+
+uniform bool uBlinnEnabled
+<
+    string UIGroup = "Specularity";
+    string UIName = "Enable Blinn";
+> = false;
+
+uniform float uSpecularStrength 
+<
+    string UIGroup = "Specularity";
+	string UIWidget = "slider";
+	string UIName = "Specular Strength";
+	float UIMin = 0;
+	float UIMax = 5;
+> = 0.6;
+
+uniform vec4 uSpecularColor
+<
+    string UIGroup = "Specularity";
+    string UIName = "Specular Color";
+	string UIWidget = "Color";
+> = {1.0, 1.0, 1.0, 1.0};
+
+uniform float uSpecularPower 
+<
+    string UIGroup = "Specularity";
+	string UIWidget = "slider";
+	string UIName = "Specular Power";
+	float UIMin = 0;
+	float UIMax = 128;
+> = 12;
+
+//-------------------------------------------------------------------------------------
+// SUBSURFACE
+
+uniform vec4 uSubsurfaceColor
+<
+    string UIGroup = "Subsurface";
+    string UIName = "Subsurface Color";
+	string UIWidget = "Color";
+> = {0.1, 0.0, 0.0, 1.0};
+
+uniform float uSubsurfaceSpread 
+<
+    string UIGroup = "Subsurface";
+	string UIWidget = "slider";
+	string UIName = "Subsurface Spreadc";
+	float UIMin = 0;
+	float UIMax = 1.0;
+> = 0.0;
+
+//-------------------------------------------------------------------------------------
+// FRESNEL
+
+uniform vec4 uFresnelColor
+<
+    string UIGroup = "Fresnel";
+    string UIName = "Fresnel Color";
+	string UIWidget = "Color";
+> = {1.0, 1.0, 1.0, 1.0};
+
+uniform float uFresnelPower 
+<
+    string UIGroup = "Fresnel";
+	string UIWidget = "slider";
+	string UIName = "Fresnel Strength";
+	float UIMin = 0;
+	float UIMax = 10;
+> = 0.6;
+
+//-------------------------------------------------------------------
+// TEXTURES
+uniform vec2 uvSpeedXY 
+<
+    string UIGroup = "Textures";
+	string UIName = "UV Animation Speed";
+> = {0.0f, 0.0f};
+
+uniform float uvTileX 
+<
+    string UIGroup = "Textures";
+    string UIWidget = "slider";
+	string UIName = "UV Tile X";
+    float UIMin = 1;
+	float UIMax = 10;
+> = 1.0f;
+
+uniform float uvTileY
+<
+    string UIGroup = "Textures";
+    string UIWidget = "slider";
+	string UIName = "UV Tile Y";
+    float UIMin = 1;
+	float UIMax = 10;
+> = 1.0f;
+
+uniform float uvOffsetX
+<
+    string UIGroup = "Textures";
+    string UIWidget = "slider";
+	string UIName = "UV Offset X";
+    float UIMin = 0;
+	float UIMax = 10;
+> = 0.0f;
+
+uniform float uvOffsetY
+<
+    string UIGroup = "Textures";
+    string UIWidget = "slider";
+	string UIName = "UV Offset Y";
+    float UIMin = 0;
+	float UIMax = 10;
+> = 0.0f;
+
+uniform texture2D uDiffuseTexture
+<
+    string UIGroup = "Textures";
+    string UIName = "Diffuse Texture";
+    string ResourceType = "2D";
+>;
+
+uniform sampler2D uDiffuseSampler = sampler_state
+{
+    Texture = <uDiffuseTexture>;
+};
+
+uniform texture2D uSpecularTexture
+<
+    string UIGroup = "Textures";
+    string UIName = "Specular Texture";
+    string ResourceType = "2D";
+>;
+
+uniform sampler2D uSpecularSampler = sampler_state
+{
+    Texture = <uSpecularTexture>;
+};
+
+uniform bool uNormalMapEnabled
+<
+    string UIGroup = "Textures";
+    string UIName = "Enable Normal Map";
+> = false;
+
+uniform texture2D uNormalMapTexture
+<
+    string UIGroup = "Textures";
+    string UIName = "Normal Map Texture";
+    string ResourceType = "2D";
+>;
+
+uniform sampler2D uNormalMapSampler = sampler_state
+{
+    Texture = <uNormalMapTexture>;
+};
+
+uniform float uNormalMapStrength 
+<
+    string UIGroup = "Textures";
+	string UIWidget = "slider";
+	string UIName = "Normal Map Strength";
+	float UIMin = 0;
+	float UIMax = 5;
+> = 0.0;
+
+//-------------------------------------------------------------------------------------
+// CUBEMAP
+uniform textureCube uCubemapTexture
+<
+    string UIName = "Cubemap Texture";
+    string ResourceType = "Cube";
+    string UIGroup = "Cubemap";
+>;
+
+uniform samplerCube uCubemapSampler = sampler_state
+{
+    Texture = <uCubemapTexture>;
+    TEXTURE_MIN_FILTER = LINEAR_MIPMAP_LINEAR;
+    TEXTURE_MAG_FILTER = LINEAR;
+};
+
+uniform float uCubemapContrast
+<
+    string UIGroup = "Cubemap";
+    string UIName = "Cubemap Contrast";
+    float UIMin = 0.0f;
+    float UIMax = 10.0f;
+    float UIStep = 0.01f;
+    string UIWidget = "slider";
+> = 1.0f;
+
+uniform float uCubemapStrength
+<
+    string UIGroup = "Cubemap";
+    string UIName = "Cubemap Strength";
+    float UIMin = 0.0f;
+    float UIMax = 10.0f;
+    float UIStep = 0.01f;
+    string UIWidget = "slider";
+> = 0.0f;
+
+//-------------------------------------------------------------------------------------
+// TRANSPARENCY
+
+uniform float uOpacityStrength
+<
+    string UIGroup = "Transparency";
+    string UIName = "Opacity Strength";
+    float UIMin = 0.0f;
+    float UIMax = 1.0f;
+    float UIStep = 0.01f;
+    string UIWidget = "slider";
+> = 1.0f;
+
+//###################################################################
+// INPUT/OUTPUT STRUCTS
+//
+// 
+//###################################################################
+
+attribute appdata {
+    vec4 aPosition    : POSITION;
+    vec2 aUV        : TEXCOORD0;
+    vec3 aNormal    : NORMAL;
+    vec3 aBinormal : BINORMAL;
+    vec3 aTangent : TANGENT;
+};
+
+attribute vOutput {
+    vec2 outUV : TEXCOORD0;
+    vec3 outWorldNormal    : TEXCOORD1;
+    vec3 outWorldCameraDir    : TEXCOORD2;
+    vec3 outWorldBinormal : TEXCOORD3;
+    vec3 outWorldTangent : TEXCOORD4;
+};
+
+attribute fOutput 
+{
+    vec4 outColor : COLOR0;
+}
+
+//###################################################################
+// VERTEX SHADER
+//
+// 
+//###################################################################
+
+GLSLShader VS
+{
+    void main()
+    {
+        //Compute MVP vertex position
+        vec4 mvpPos = WorldViewProjection * aPosition;
+        //Compute World Space normal
+        vec3 worldNormal = (WorldInverseTranspose, vec4(aNormal.xyz, 0.0)).xyz;
+        //Compute World Space binormal
+        vec3 worldBinormal = (WorldInverseTranspose, vec4(aBinormal.xyz, 0.0)).xyz;
+        //Compute World Space tangent
+        vec3 worldTangent = (WorldInverseTranspose, vec4(aTangent, 0.0)).xyz;
+        //Compute World Space vertex position
+        vec3 worldPos = (World, aPosition).xyz;
+        //Compute World Space camera position
+        vec3 worldCameraPos = ViewInverse[3].xyz;
+        //Computee World Space camera direction
+        vec3 worldCameraDir = worldCameraPos - worldPos;
+
+        outWorldNormal = worldNormal;
+        outWorldBinormal = worldBinormal;
+        outWorldTangent = worldTangent;
+        outWorldCameraDir = worldCameraDir;
+        outUV = vec2(aUV.x, 1.0 - aUV.y);
+
+        gl_Position = mvpPos;
+    }
+}
+
+//###################################################################
+// FRAGMENT SHADER
+//
+// 
+//###################################################################
+
+GLSLShader FS
+{
+    //Phong Specular
+    float computePhong(float specularStrength, vec3 lightDir, vec3 worldNormal, vec3 worldCameraDir, float specularPower)
+    {
+        float specular = specularStrength * pow(clamp(dot(reflect(-lightDir, worldNormal), worldCameraDir), 0.0, 1.0), specularPower);
+
+        return specular;
+    }
+
+    //Blinn Specular
+    float computeBlinn(float specularStrength, float diffuse, vec3 lightDir, vec3 worldNormal, vec3 worldCameraDir, float specularPower)
+    {
+        vec3 halfwayDir = normalize(worldCameraDir + lightDir);
+        float specular = dot(halfwayDir, worldNormal);
+        vec4 litV = lit(diffuse, specular, specularPower);
+        specular = specularStrength * diffuse * litV.z;
+
+        return specular;
+    }
+
+    void main()
+    {
+        vec2 uv = outUV * vec2(uvTileX, uvTileY) + vec2(uvOffsetX * 0.1, uvOffsetY * 0.1) + (time * uvSpeedXY);;
+        
+        vec3 worldNormal = normalize(outWorldNormal);
+        if (uNormalMapEnabled) {
+            worldNormal = texture(uNormalMapSampler, uv).rgb * 2 - 1;
+            worldNormal = normalize((worldNormal.x * outWorldTangent * uNormalMapStrength)
+			+(worldNormal.y * -outWorldBinormal * uNormalMapStrength)
+			+(worldNormal.z * outWorldNormal)).xyz;
+        }
+        vec3 lightDir = normalize(-uLightDirection);
+        vec3 worldCameraDir = normalize(outWorldCameraDir);
+        vec3 reflectionVector = -reflect(worldCameraDir, worldNormal);
+
+        vec4 diffuseTex = texture(uDiffuseSampler, uv);
+        vec4 specularTex = texture(uSpecularSampler, uv);
+        vec4 cubemapTex = texture(uCubemapSampler, reflectionVector);
+        
+
+        //AMBIENT 
+        vec4 ambientColor = lerp(uAmbientBottomColor, uAmbientTopColor, clamp(dot(vec3(0, 1, 0), vec3(worldNormal.xyz)), 0.0, 1.0));
+        
+        //DIFFUSE LIGHTING
+        float diffuse = dot(lightDir, worldNormal) * (1 - uSubsurfaceSpread) + uSubsurfaceSpread;
+        
+        //Subsurface 
+        vec4 diffuseSubsurface = clamp((vec4(diffuse, diffuse, diffuse, 1.0) + uSubsurfaceColor), 0.0, 1.0);
+        vec4 totalDiffuse = diffuseSub * uDiffuseColor;
+        
+        if (length(vec3(diffuseTex.xyz)) > 0) {
+            totalDiffuse *= diffuseTex;
+        }
+        
+        //SPECULAR LIGHTING
+        float specular;
+        if (uBlinnEnabled) {
+            specular = computeBlinn(uSpecularStrength, diffuse, lightDir, worldNormal, worldCameraDir, uSpecularPower);
+        }
+        else {
+            specular = computePhong(uSpecularStrength, lightDir, worldNormal, worldCameraDir, uSpecularPower);
+        }
+
+        //FRESNEL
+        vec4 fresnel = pow(1 - clamp(dot(worldCameraDir, worldNormal), 0.0, 1.0), uFresnelPower) * uFresnelColor;
+        //TOTAL SPEC
+        vec4 totalSpec;
+        if (length(vec3(specularTex.xyz)) > 0) {
+            totalSpec = (fresnel * specularTex.b) + (specular * specularTex.r * uSpecularColor);
+        }
+        else {
+            totalSpec = fresnel + (specular * uSpecularColor);
+        }
+
+        totalSpec += vec4(pow(cubemapTex.r, uCubemapContrast), pow(cubemapTex.g, uCubemapContrast), pow(cubemapTex.b, uCubemapContrast), 0.0) * uCubemapStrength;
+        
+        vec4 result = ambientColor + totalDiffuse + totalSpec;
+        //result *= mix(vec4(1, 1, 1, 1), cubemapTex, uCubemapStrength);
+        result *= uDiffuseStrength;
+        result *= uOpacityStrength;
+
+        outColor.xyz = result.xyz;
+        
+        outColor.a = uOpacityStrength; 
+    }
+}
+
+//###################################################################
+// TECHNIQUES
+//
+// 
+//###################################################################
+
+technique Main
+<
+    string Transparency = "Transparent";
+>
+{
+    pass p0
+    {
+        VertexShader (in appdata, out vOutput) = VS;
+        PixelShader (in vOutput, out fOutput) = FS;
+    }
+}
