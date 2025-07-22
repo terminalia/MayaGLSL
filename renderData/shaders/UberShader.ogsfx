@@ -253,6 +253,16 @@ uniform samplerCube uCubemapSampler = sampler_state
     TEXTURE_MAG_FILTER = LINEAR;
 };
 
+uniform float uCubemapBlur
+<
+    string UIGroup = "Cubemap";
+    string UIName = "Cubemap Blur";
+    float UIMin = 0.0f;
+    float UIMax = 10.0f;
+    float UIStep = 0.01f;
+    string UIWidget = "slider";
+> = 0.0f;
+
 uniform float uCubemapContrast
 <
     string UIGroup = "Cubemap";
@@ -392,7 +402,7 @@ GLSLShader FS
 
         vec4 diffuseTex = texture(uDiffuseSampler, uv);
         vec4 specularTex = texture(uSpecularSampler, uv);
-        vec4 cubemapTex = texture(uCubemapSampler, reflectionVector);
+        vec4 cubemapTex = textureLod(uCubemapSampler, reflectionVector, uCubemapBlur);
         
 
         //AMBIENT 
