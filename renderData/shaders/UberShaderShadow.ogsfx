@@ -276,12 +276,40 @@ uniform float FresnelPower
 > = 0.6;
 
 //-------------------------------------------------------------------------------------
+// SUBSURFACE
+
+uniform bool SubsurfaceEnabled
+<
+    string UIGroup = "Subsurface";
+    string UIName = "Enable Subsurface";
+    int UIOrder = 40;
+> = false;
+
+uniform vec4 SubsurfaceColor
+<
+    string UIGroup = "Subsurface";
+    string UIName = "Subsurface Color";
+	string UIWidget = "Color";
+    int UIOrder = 41;
+> = {0.1, 0.0, 0.0, 1.0};
+
+uniform float SubsurfaceSpread 
+<
+    string UIGroup = "Subsurface";
+	string UIWidget = "slider";
+	string UIName = "Subsurface Spreadc";
+	float UIMin = 0;
+	float UIMax = 1.0;
+    int UIOrder = 42;
+> = 0.0;
+
+//-------------------------------------------------------------------------------------
 // NORMAL MAP
 uniform bool NormalMapEnabled
 <
     string UIGroup = "Normal Map";
     string UIName = "Enable Normal Map";
-    int UIOrder = 40;
+    int UIOrder = 50;
 > = false;
 
 
@@ -290,7 +318,7 @@ uniform texture2D NormalMapTexture
     string UIGroup = "Normal Map";
     string UIName = "Normal Map Texture";
     string ResourceType = "2D";
-    int UIOrder = 41;
+    int UIOrder = 51;
 >;
 
 uniform sampler2D NormalMapSampler = sampler_state
@@ -305,7 +333,7 @@ uniform float NormalMapStrength
 	string UIName = "Normal Map Strength";
 	float UIMin = 0;
 	float UIMax = 5;
-    int UIOrder = 42;
+    int UIOrder = 52;
 > = 0.0;
 
 //-------------------------------------------------------------------------------------
@@ -314,7 +342,7 @@ uniform vec2 uvSpeedXY
 <
     string UIGroup = "UV Settings";
 	string UIName = "UV Animation Speed";
-    int UIOrder = 50;
+    int UIOrder = 60;
 > = {0.0f, 0.0f};
 
 uniform float uvTileX 
@@ -324,7 +352,7 @@ uniform float uvTileX
 	string UIName = "UV Tile X";
     float UIMin = 1;
 	float UIMax = 10;
-    int UIOrder = 51;
+    int UIOrder = 61;
 > = 1.0f;
 
 uniform float uvTileY
@@ -334,7 +362,7 @@ uniform float uvTileY
 	string UIName = "UV Tile Y";
     float UIMin = 1;
 	float UIMax = 10;
-    int UIOrder = 52;
+    int UIOrder = 62;
 > = 1.0f;
 
 uniform float uvOffsetX
@@ -344,7 +372,7 @@ uniform float uvOffsetX
 	string UIName = "UV Offset X";
     float UIMin = 0;
 	float UIMax = 10;
-    int UIOrder = 53;
+    int UIOrder = 63;
 > = 0.0f;
 
 uniform float uvOffsetY
@@ -354,7 +382,7 @@ uniform float uvOffsetY
 	string UIName = "UV Offset Y";
     float UIMin = 0;
 	float UIMax = 10;
-    int UIOrder = 54;
+    int UIOrder = 64;
 > = 0.0f;
 
 //-------------------------------------------------------------------------------------
@@ -365,7 +393,7 @@ uniform textureCube CubemapTexture
     string UIName = "Reflection Cubemap";
     string ResourceType = "Cube";
     string UIGroup = "Cubemap";
-    int UIOrder = 60;
+    int UIOrder = 70;
 >;
 
 uniform samplerCube uCubemapSampler = sampler_state
@@ -383,7 +411,7 @@ uniform float CubemapBlur
     float UIMax = 10.0f;
     float UIStep = 0.01f;
     string UIWidget = "slider";
-    int UIOrder = 61;
+    int UIOrder = 71;
 > = 0.0f;
 
 uniform float CubemapContrast
@@ -394,7 +422,7 @@ uniform float CubemapContrast
     float UIMax = 10.0f;
     float UIStep = 0.01f;
     string UIWidget = "slider";
-    int UIOrder = 62;
+    int UIOrder = 72;
 > = 1.0f;
 
 uniform float CubemapStrength
@@ -405,9 +433,8 @@ uniform float CubemapStrength
     float UIMax = 10.0f;
     float UIStep = 0.01f;
     string UIWidget = "slider";
-    int UIOrder = 63;
+    int UIOrder = 73;
 > = 0.0f;
-
 
 //-------------------------------------------------------------------------------------
 // TRANSPARENCY
@@ -581,6 +608,14 @@ GLSLShader FS
         float diffuse = clamp(dot(worldNormal, lightDir), 0.0, 1.0);
         vec3 totalDiffuse = (diffuse * DiffuseColor.rgb);
 
+        //SUBSURFACE
+        if (SubsurfaceEnabled) {
+            diffuse = clamp(dot(worldNormal, lightDir), 0.0, 1.0) * (1 - SubsurfaceSpread) + SubsurfaceSpread;
+            totalDiffuse = diffuse * DiffuseColor.rgb;
+            vec4 diffuseSubsurface = clamp((vec4(diffuse, diffuse, diffuse, 1.0) + SubsurfaceColor), 0.0, 1.0);
+            totalDiffuse = diffuseSubsurface.rgb;
+        }
+
         if (DiffuseTextureEnabled) {
             vec4 diffuseTex = texture(DiffuseSampler, uv);
             totalDiffuse *= diffuseTex.rgb;
@@ -621,6 +656,7 @@ GLSLShader FS
         totalDiffuse *= shadowMap;
 
         vec3 result = ambientColor.rgb + totalDiffuse + totalSpec;
+        result *= Light0Color * Light0Intensity;
         result *= OpacityStrength;
         outColor.rgb = result;
 
