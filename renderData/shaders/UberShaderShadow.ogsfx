@@ -142,6 +142,44 @@ uniform vec3 DiffuseColor
     int UIOrder = 11;
 > = {1.0, 1.0, 1.0};
 
+uniform bool DiffuseTextureEnabled
+<
+    string UIGroup = "Diffuse";
+    string UIName = "Diffuse Texture";
+    int UIOrder = 12;
+> = false;
+
+uniform bool DiffuseTextureAlphaEnabled
+<
+    string UIGroup = "Diffuse";
+    string UIName = "Diffuse Texture Alpha";
+    int UIOrder = 13;
+> = false;
+
+uniform texture2D DiffuseTexture
+<
+    string UIGroup = "Diffuse";
+    string UIName = "Diffuse Texture";
+    string ResourceType = "2D";
+    int UIOrder = 14;
+>;
+
+uniform sampler2D DiffuseSampler = sampler_state
+{
+    Texture = <DiffuseTexture>;
+};
+
+uniform float CutOffAmount
+<
+	string UIGroup = "Diffuse";
+	string UIWidget = "Slider";
+	float UIMin = 0.0;
+	float UIMax = 1.0;
+	float UIStep = 0.00001;
+	int UIOrder = 15;
+	string UIName = "Cut-Off Amount";
+> = 0.0;
+
 //-------------------------------------------------------------------------------------
 // SPECULARITY
 
@@ -337,6 +375,18 @@ GLSLShader FS
         //DIFFUSE LIGHTING
         float diffuse = clamp(dot(worldNormal, lightDir), 0.0, 1.0);
         vec3 totalDiffuse = (diffuse * DiffuseColor.rgb);
+
+        if (DiffuseTextureEnabled) {
+            vec4 diffuseTex = texture(DiffuseSampler, uv);
+            totalDiffuse *= diffuseTex.rgb;
+            
+            if (DiffuseTextureAlphaEnabled) {
+                float diffuseTexAlpha = diffuseTex.a;
+                if (diffuseTexAlpha < CutOffAmount)
+                    discard;
+            }
+        }
+
 
         //SPECULAR LIGHTING
         float specular = 0.0;
