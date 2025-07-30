@@ -1,0 +1,761 @@
+//###################################################################
+// MATRICES
+//
+// Matrices coming from application (Maya)
+//###################################################################
+
+uniform mat4 WorldViewProjection : WorldViewProjection < string UIWidget="None"; >;
+uniform mat4 WorldInverseTranspose : WorldInverseTranspose < string UIWidget="None"; >;
+uniform mat4 ViewInverse : ViewInverse < string UIWidget="None"; >;
+uniform mat4 World : World < string UIWidget="None"; >;
+uniform mat4 shadowViewPrj : ViewProjection < string UIWidget = "None"; >;
+
+//###################################################################
+// PARAMETERS
+//
+// 
+//###################################################################
+
+//Shadow 
+uniform vec2 ShadowFilterTaps[10] < string UIWidget = "None"; > = {{-0.84052, -0.073954}, {-0.326235, -0.40583}, {-0.698464, 0.457259}, {-0.203356, 0.620585}, {0.96345, -0.194353}, {0.473434, -0.480026}, {0.519454, 0.767034}, {0.185461, -0.894523}, {0.507351, 0.064963}, {-0.321932, 0.595435}};
+
+//Animation time
+uniform float time : Time
+<
+    string UIWidget = "None";
+>;
+
+//-------------------------------------------------------------------------------------
+// AMBIENT LIGHT
+uniform vec3 AmbientTopColor
+<   
+    string UIGroup = "Lights";
+    string UIName = "Ambient Top Color";
+	string UIWidget = "Color";
+> = {0.0, 0.0, 0.0};
+
+uniform vec3 AmbientBottomColor
+<   
+    string UIGroup = "Lights";
+    string UIName = "Ambient Bottom Color";
+	string UIWidget = "Color";
+> = {0.0, 0.0, 0.0};
+
+//-------------------------------------------------------------------------------------
+// DIRECTIONAL LIGHT
+uniform int Light0Type : LIGHTTYPE
+<
+	string UIName = "Light 0 Type";
+	float UIMin = 0;
+	float UIMax = 5;
+	float UIStep = 1;
+	string UIWidget = "None";
+	string Object = "Light 0";
+> = 3;
+
+uniform vec3 Light0Color : LIGHTCOLOR
+<
+	string UIName = "Light 0 Color";
+	string UIWidget = "ColorPicker";
+	string Object = "Light 0";
+> = {1.0, 1.0, 1.0};
+
+uniform float Light0Intensity : LIGHTINTENSITY
+<
+	string UIName = "Light 0 Intensity";
+	float UIMin = 0;
+	float UIStep = 0.1;
+	string Object = "Light 0";
+> = 1.0;
+
+uniform vec3 Light0Dir : DIRECTION
+<
+	string UIName = "Light 0 Direction";
+	string Space = "World";
+	string Object = "Light 0";
+> = {0.0, -1.0, 0.0};
+
+
+uniform bool Light0ShadowOn : SHADOWFLAG
+<
+	string UIName = "Light 0 Casts Shadow";
+	string Object = "Light 0";
+> = true;
+
+
+uniform mat4 Light0ViewPrj : SHADOWMAPMATRIX
+<
+	string Object = "Light 0";
+	string UIName = "Light 0 Matrix";
+	string UIWidget = "None";
+>;
+
+uniform vec3 Light0ShadowColor : SHADOWCOLOR
+<
+	string UIName = "Light 0 Shadow Color";
+	string Object = "Light 0";
+> = {0, 0, 0};
+
+uniform texture2D Light0ShadowMap : SHADOWMAP
+<
+	string ResourceName = "";
+	string ResourceType = "2D";
+	string UIWidget = "None";
+	string Object = "Light 0";
+	string UIName = "light0ShadowMap";
+>;
+
+uniform sampler2D Light0ShadowMapSampler = sampler_state 
+{
+	Texture = <Light0ShadowMap>;
+	TEXTURE_MIN_FILTER = NEAREST;
+	TEXTURE_MAG_FILTER = NEAREST;
+	TEXTURE_WRAP_S = REPEAT;
+	TEXTURE_WRAP_T = REPEAT;
+	TEXTURE_WRAP_R = REPEAT;
+};
+
+uniform float Light0ShadowBias : SHADOWMAPBIAS
+<
+    // string Object = "Light 0";
+    string UIGroup = "Shadows";
+    string UIName = "Light 0 ShadowBias";
+    string UIWidget = "slider";
+    float UIMin = 0;
+	float UIMax = 1;
+    int UIOrder = 0;
+> = 0.01;
+
+uniform float ShadowStrength 
+<
+    string UIGroup = "Shadows";
+    // string Object = "Light 0";
+	string UIWidget = "slider";
+	string UIName = "Shadow Strength";
+	float UIMin = 0;
+	float UIMax = 1;
+    int UIOrder = 1;
+> = 0.6;
+
+//-------------------------------------------------------------------------------------
+// DIFFUSE
+
+uniform float DiffuseStrength 
+<
+    string UIGroup = "Diffuse";
+	string UIWidget = "slider";
+	string UIName = "Diffuse Strength";
+	float UIMin = 0;
+	float UIMax = 1;
+    int UIOrder = 10;
+> = 0.6;
+
+uniform vec3 DiffuseColor
+<   
+    string UIGroup = "Diffuse";
+    string UIName = "Diffuse Color";
+	string UIWidget = "Color";
+    int UIOrder = 11;
+> = {1.0, 1.0, 1.0};
+
+uniform bool DiffuseTextureEnabled
+<
+    string UIGroup = "Diffuse";
+    string UIName = "Enable Diffuse Texture";
+    int UIOrder = 12;
+> = false;
+
+uniform bool DiffuseTextureAlphaEnabled
+<
+    string UIGroup = "Diffuse";
+    string UIName = "Enable Diffuse Texture Alpha";
+    int UIOrder = 13;
+> = false;
+
+uniform texture2D DiffuseTexture
+<
+    string UIGroup = "Diffuse";
+    string UIName = "Diffuse Texture";
+    string ResourceType = "2D";
+    int UIOrder = 14;
+>;
+
+uniform sampler2D DiffuseSampler = sampler_state
+{
+    Texture = <DiffuseTexture>;
+};
+
+uniform float CutOffAmount
+<
+	string UIGroup = "Diffuse";
+	string UIWidget = "Slider";
+	float UIMin = 0.0;
+	float UIMax = 1.0;
+	float UIStep = 0.00001;
+	int UIOrder = 15;
+	string UIName = "Cut-Off Amount";
+> = 0.0;
+
+//-------------------------------------------------------------------------------------
+// SPECULARITY
+
+uniform bool BlinnEnabled
+<
+    string UIGroup = "Specularity";
+    string UIName = "Enable Blinn";
+    int UIOrder = 20;
+> = false;
+
+uniform float SpecularStrength 
+<
+    string UIGroup = "Specularity";
+	string UIWidget = "slider";
+	string UIName = "Specular Strength";
+	float UIMin = 0;
+	float UIMax = 5;
+    int UIOrder = 21;
+> = 0.6;
+
+uniform vec3 SpecularColor
+<
+    string UIGroup = "Specularity";
+    string UIName = "Specular Color";
+	string UIWidget = "Color";
+    int UIOrder = 22;
+> = {1.0, 1.0, 1.0};
+
+uniform float SpecularPower 
+<
+    string UIGroup = "Specularity";
+	string UIWidget = "slider";
+	string UIName = "Specular Power";
+	float UIMin = 0;
+	float UIMax = 128;
+    int UIOrder = 23;
+> = 12;
+
+uniform bool SpecularTextureEnabled
+<
+    string UIGroup = "Specularity";
+    string UIName = "Enable Specular Texture";
+    int UIOrder = 24;
+> = false;
+
+uniform texture2D SpecularTexture
+<
+    string UIGroup = "Specularity";
+    string UIName = "Specular Texture";
+    string ResourceType = "2D";
+    int UIOrder = 25;
+>;
+
+uniform sampler2D SpecularSampler = sampler_state
+{
+    Texture = <SpecularTexture>;
+};
+
+//-------------------------------------------------------------------------------------
+// FRESNEL
+
+uniform vec3 FresnelColor
+<
+    string UIGroup = "Fresnel";
+    string UIName = "Fresnel Color";
+	string UIWidget = "Color";
+    int UIOrder = 30;
+> = {0.0, 0.0, 0.0};
+
+uniform float FresnelPower 
+<
+    string UIGroup = "Fresnel";
+	string UIWidget = "slider";
+	string UIName = "Fresnel Strength";
+	float UIMin = 0;
+	float UIMax = 10;
+    int UIOrder = 31;
+> = 0.6;
+
+//-------------------------------------------------------------------------------------
+// SUBSURFACE
+
+uniform bool SubsurfaceEnabled
+<
+    string UIGroup = "Subsurface";
+    string UIName = "Enable Subsurface";
+    int UIOrder = 40;
+> = false;
+
+uniform vec4 SubsurfaceColor
+<
+    string UIGroup = "Subsurface";
+    string UIName = "Subsurface Color";
+	string UIWidget = "Color";
+    int UIOrder = 41;
+> = {0.1, 0.0, 0.0, 1.0};
+
+uniform float SubsurfaceSpread 
+<
+    string UIGroup = "Subsurface";
+	string UIWidget = "slider";
+	string UIName = "Subsurface Spreadc";
+	float UIMin = 0;
+	float UIMax = 1.0;
+    int UIOrder = 42;
+> = 0.0;
+
+//-------------------------------------------------------------------------------------
+// NORMAL MAP
+uniform bool NormalMapEnabled
+<
+    string UIGroup = "Normal Map";
+    string UIName = "Enable Normal Map";
+    int UIOrder = 50;
+> = false;
+
+
+uniform texture2D NormalMapTexture
+<
+    string UIGroup = "Normal Map";
+    string UIName = "Normal Map Texture";
+    string ResourceType = "2D";
+    int UIOrder = 51;
+>;
+
+uniform sampler2D NormalMapSampler = sampler_state
+{
+    Texture = <NormalMapTexture>;
+};
+
+uniform float NormalMapStrength 
+<
+    string UIGroup = "Normal Map";
+	string UIWidget = "slider";
+	string UIName = "Normal Map Strength";
+	float UIMin = 0;
+	float UIMax = 5;
+    int UIOrder = 52;
+> = 0.0;
+
+//-------------------------------------------------------------------------------------
+// UV MANIPULATION
+uniform vec2 uvSpeedXY 
+<
+    string UIGroup = "UV Settings";
+	string UIName = "UV Animation Speed";
+    int UIOrder = 60;
+> = {0.0f, 0.0f};
+
+uniform float uvTileX 
+<
+    string UIGroup = "UV Settings";
+    string UIWidget = "slider";
+	string UIName = "UV Tile X";
+    float UIMin = 1;
+	float UIMax = 10;
+    int UIOrder = 61;
+> = 1.0f;
+
+uniform float uvTileY
+<
+    string UIGroup = "UV Settings";
+    string UIWidget = "slider";
+	string UIName = "UV Tile Y";
+    float UIMin = 1;
+	float UIMax = 10;
+    int UIOrder = 62;
+> = 1.0f;
+
+uniform float uvOffsetX
+<
+    string UIGroup = "UV Settings";
+    string UIWidget = "slider";
+	string UIName = "UV Offset X";
+    float UIMin = 0;
+	float UIMax = 10;
+    int UIOrder = 63;
+> = 0.0f;
+
+uniform float uvOffsetY
+<
+    string UIGroup = "UV Settings";
+    string UIWidget = "slider";
+	string UIName = "UV Offset Y";
+    float UIMin = 0;
+	float UIMax = 10;
+    int UIOrder = 64;
+> = 0.0f;
+
+//-------------------------------------------------------------------------------------
+// REFLECTION (CUBEMAP)
+
+uniform textureCube CubemapTexture
+<
+    string UIName = "Reflection Cubemap";
+    string ResourceType = "Cube";
+    string UIGroup = "Cubemap";
+    int UIOrder = 70;
+>;
+
+uniform samplerCube uCubemapSampler = sampler_state
+{
+    Texture = <CubemapTexture>;
+    TEXTURE_MIN_FILTER = LINEAR_MIPMAP_LINEAR;
+    TEXTURE_MAG_FILTER = LINEAR;
+};
+
+uniform float CubemapBlur
+<
+    string UIGroup = "Cubemap";
+    string UIName = "Cubemap Blur";
+    float UIMin = 0.0f;
+    float UIMax = 10.0f;
+    float UIStep = 0.01f;
+    string UIWidget = "slider";
+    int UIOrder = 71;
+> = 0.0f;
+
+uniform float CubemapContrast
+<
+    string UIGroup = "Cubemap";
+    string UIName = "Cubemap Contrast";
+    float UIMin = 0.0f;
+    float UIMax = 10.0f;
+    float UIStep = 0.01f;
+    string UIWidget = "slider";
+    int UIOrder = 72;
+> = 1.0f;
+
+uniform float CubemapStrength
+<
+    string UIGroup = "Cubemap";
+    string UIName = "Cubemap Strength";
+    float UIMin = 0.0f;
+    float UIMax = 10.0f;
+    float UIStep = 0.01f;
+    string UIWidget = "slider";
+    int UIOrder = 73;
+> = 0.0f;
+
+//-------------------------------------------------------------------------------------
+// WIND
+
+uniform bool WindYEnabled
+<
+    string UIGroup = "Wind";
+    string UIName = "Enable Y axis animation";
+    int UIOrder = 80;
+> = false;
+
+uniform float WindSpeed
+<
+	string UIGroup = "Wind";
+    string UIWidget = "slider";
+	string UIName = "Wind Speed";
+    float UIMin = 0;
+	float UIMax = 10;
+	int UIOrder = 81;
+> = 0.0f;
+
+uniform float SwayRigidness
+<
+	string UIGroup = "Wind";
+    string UIWidget = "slider";
+	string UIName = "Sway Rigidness";
+    float UIMin = 0;
+	float UIMax = 10;
+	int UIOrder = 82;
+> = 0.1f;
+
+uniform float SwayMax
+<
+	string UIGroup = "Wind";
+    string UIWidget = "slider";
+	string UIName = "Sway Max";
+    float UIMin = 0;
+	float UIMax = 10;
+	int UIOrder = 83;
+> = 0.1f;
+
+uniform float WindYOffset
+<
+	string UIGroup = "Wind";
+    string UIWidget = "slider";
+	string UIName = "Y Offset";
+    float UIMin = 0;
+	float UIMax = 10;
+	int UIOrder = 84;
+> = 0.0f;
+//-------------------------------------------------------------------------------------
+// TRANSPARENCY
+
+uniform float OpacityStrength 
+<
+    string UIGroup = "Transparency";
+	string UIWidget = "slider";
+	string UIName = "Opacity Strength";
+	float UIMin = 0;
+	float UIMax = 1;
+    int UIOrder = 100;
+> = 1;
+
+//###################################################################
+// INPUT/OUTPUT STRUCTS
+//
+// 
+//###################################################################
+
+attribute appdata {
+    vec4 aPosition    : POSITION;
+    vec2 aUV        : TEXCOORD0;
+    vec3 aNormal    : NORMAL;
+    vec3 aBinormal : BINORMAL;
+    vec3 aTangent : TANGENT;
+};
+
+attribute vOutput {
+    vec2 outUV : TEXCOORD0;
+    vec3 outWorldNormal : NORMAL;
+    vec4 outWorldTangent : TANGENT;
+    vec4 outWorldPos : TEXCOORD1;
+    vec3 outWorldCameraDir : TEXCOORD2;
+};
+
+attribute fOutput 
+{
+    vec4 outColor : COLOR0;
+}
+
+//###################################################################
+// VERTEX SHADER
+//
+// 
+//###################################################################
+
+GLSLShader VS
+{
+    void main()
+    {
+        vec4 inPosition = aPosition;
+
+        //WIND
+        float x = sin(inPosition.x / SwayRigidness + (time * WindSpeed)) * (inPosition.y - WindYOffset);
+        float z = sin(inPosition.z / SwayRigidness + (time * WindSpeed)) * (inPosition.y - WindYOffset);
+
+        inPosition.x += (step(0, inPosition.y - WindYOffset) * x * SwayMax);
+        inPosition.z += (step(0, inPosition.y - WindYOffset) * z * SwayMax);
+        
+        if (WindYEnabled) {
+            float y = sin(inPosition.y / SwayRigidness + (time * WindSpeed));
+            inPosition.y += (step(0, inPosition.y - WindYOffset) * y * SwayMax);
+        }
+        //Compute MVP vertex position
+        vec4 mvpPos = WorldViewProjection * inPosition;
+        //Compute World Space normal
+        vec3 worldNormal = (WorldInverseTranspose * vec4(aNormal.xyz, 0.0)).xyz;
+        //Compute World Space tangent
+        vec4 worldTangent = (WorldInverseTranspose, vec4(aTangent, 0.0));
+        worldTangent.w = 1.0;
+        if (dot(cross(aNormal.xyz, aTangent.xyz), aBinormal.xyz) < 0.0) worldTangent.w = -1;
+
+        //Compute World Space vertex position
+        vec4 worldPos = World * inPosition;
+        //Compute World Space camera position
+        vec3 worldCameraPos = ViewInverse[3].xyz;
+        //Compute World Space camera direction
+        vec3 worldCameraDir = worldCameraPos - worldPos.xyz;
+
+        outWorldPos = worldPos;
+        //outWorldNormal = normalize(World * vec4(aNormal, 0));
+        outWorldNormal = worldNormal;
+        outWorldTangent = worldTangent;
+        outWorldCameraDir = worldCameraDir;
+        outUV = vec2(aUV.x, 1.0 - aUV.y);
+
+        gl_Position = mvpPos;
+    }
+}
+
+//###################################################################
+// FRAGMENT SHADER
+//
+// 
+//###################################################################
+GLSLShader FS
+{
+
+    float computeShadowMap(vec3 worldPos)
+    {
+		float IfElseOp199 = 0.0;
+		vec4 VectorConstruct = vec4(worldPos.x, worldPos.y, worldPos.z, 1.0);
+		vec4 MulOp = (Light0ViewPrj * VectorConstruct);
+		vec3 DivOp = (MulOp.xyz / MulOp.w);
+		if (DivOp.x > -1.0 && DivOp.x < 1.0 && DivOp.y > -1.0 && DivOp.y < 1.0 && DivOp.z > 0.0 && DivOp.z < 1.0)
+		{
+			float Val = 0.5;
+			vec2 AddOp = ((Val * DivOp.xy) + Val);
+			float SubOp = (DivOp.z - (Light0ShadowBias / MulOp.w));
+			float ShadowTotal = 0.0;
+			for(int i=0; i<10; i+=1)
+			{
+				vec2 MulOp239 = (0.0009 * ShadowFilterTaps[i]);
+				vec4 Sampler = textureLod(Light0ShadowMapSampler, (AddOp + MulOp239), 0);
+				float IfElseOp193 = ((SubOp - Sampler.x) >= 0.0) ? (0.0) : (0.1);
+				ShadowTotal += IfElseOp193;
+			}
+			ShadowTotal = mix(1.0, ShadowTotal, 1.0);  
+			IfElseOp199 = ShadowTotal;
+		}
+		else
+		{
+			IfElseOp199 = 1.0;
+		}
+
+		return lerp(1.0, IfElseOp199, ShadowStrength);
+    }
+
+    float ComputeShadowMapDepth(vec4 worldPos)
+    {
+		vec4 MulOp = (shadowViewPrj * worldPos);
+		float DepthPerPixel = (MulOp.z / MulOp.w);
+		float AddOp = (DepthPerPixel + fwidth(DepthPerPixel));
+		float NormalMap = (0.5 * AddOp);
+		float AddOp993 = (NormalMap + 0.5);
+
+		return AddOp993;
+    }
+
+    //Phong
+    float computePhong(vec3 lightDir, vec3 worldNormal, vec3 worldCameraDir)
+    {
+        float specular = SpecularStrength * pow(clamp(dot(reflect(-lightDir, worldNormal), worldCameraDir), 0.0, 1.0), SpecularPower);
+
+        return specular;
+    }
+
+    //Blinn
+    float computeBlinn(float diffuse, vec3 lightDir, vec3 worldNormal, vec3 worldCameraDir)
+    {
+        vec3 halfwayDir = normalize(worldCameraDir + lightDir);
+        float specular = dot(halfwayDir, worldNormal);
+        vec4 litV = lit(diffuse, specular, SpecularPower);
+        specular = SpecularStrength * diffuse * litV.z;
+
+        return specular;
+    }
+
+    void main()
+    {
+        vec2 uv = outUV * vec2(uvTileX, uvTileY) + vec2(uvOffsetX * 0.1, uvOffsetY * 0.1) + (time * uvSpeedXY);;
+        
+        vec3 worldNormal = normalize(outWorldNormal);
+        if (NormalMapEnabled) {
+            vec3 tangent = normalize(outWorldTangent.xyz);
+            vec3 binormal = cross(worldNormal, tangent);
+            binormal *= outWorldTangent.w;
+            mat3 toWorld = mat3(tangent, binormal, worldNormal);
+
+            vec3 normalTex = texture(NormalMapSampler, uv).xyz * 2 - 1;
+            normalTex.xy *= NormalMapStrength;
+            normalTex = toWorld * normalTex.xyz;
+
+            worldNormal = normalize(normalTex.rgb);
+        }
+
+        vec3 lightDir = normalize(-Light0Dir);
+        vec3 worldCameraDir = normalize(outWorldCameraDir);
+
+        //AMBIENT LIGHTING
+        vec3 ambientColor = lerp(AmbientBottomColor, AmbientTopColor, clamp(dot(vec3(0, 1, 0), worldNormal), 0.0, 1.0));
+
+        //REFLECTION (CUBEMAP)
+        vec3 reflectionVector = -reflect(worldCameraDir, worldNormal);
+        vec4 cubemapTex = textureLod(uCubemapSampler, reflectionVector, CubemapBlur);
+
+        //DIFFUSE LIGHTING
+        float diffuse = clamp(dot(worldNormal, lightDir), 0.0, 1.0);
+        vec3 totalDiffuse = (diffuse * DiffuseColor.rgb);
+
+        //SUBSURFACE
+        if (SubsurfaceEnabled) {
+            diffuse = clamp(dot(worldNormal, lightDir), 0.0, 1.0) * (1 - SubsurfaceSpread) + SubsurfaceSpread;
+            totalDiffuse = diffuse * DiffuseColor.rgb;
+            vec4 diffuseSubsurface = clamp((vec4(diffuse, diffuse, diffuse, 1.0) + SubsurfaceColor), 0.0, 1.0);
+            totalDiffuse = diffuseSubsurface.rgb;
+        }
+
+        if (DiffuseTextureEnabled) {
+            vec4 diffuseTex = texture(DiffuseSampler, uv);
+            totalDiffuse *= diffuseTex.rgb;
+
+            if (DiffuseTextureAlphaEnabled) {
+                float diffuseTexAlpha = diffuseTex.a;
+                if (diffuseTexAlpha < CutOffAmount)
+                    discard;
+            }
+        }
+
+
+        //SPECULAR LIGHTING
+        float specular = 0.0;
+        
+        //Fresnel
+        vec3 fresnel = pow(1 - clamp(dot(worldCameraDir, worldNormal), 0.0, 1.0), FresnelPower) * FresnelColor;
+        
+        if (BlinnEnabled) {
+            specular = computeBlinn(diffuse, lightDir, worldNormal, worldCameraDir);
+        }
+        else {
+            specular = computePhong(lightDir, worldNormal, worldCameraDir);
+        }
+
+        if (SpecularTextureEnabled) {
+            vec4 specularTex = texture(SpecularSampler, uv);
+            specular *= specularTex.r;
+            fresnel *= specularTex.b;
+        }
+        
+        vec3 totalSpec = fresnel + specular * SpecularColor;
+        totalSpec += vec3(pow(cubemapTex.r, CubemapContrast), pow(cubemapTex.g, CubemapContrast), pow(cubemapTex.b, CubemapContrast)) * CubemapStrength;
+
+        
+        //SHADOW
+        float shadowMap = computeShadowMap(outWorldPos.xyz);
+        totalDiffuse *= shadowMap;
+
+        vec3 result = ambientColor.rgb + totalDiffuse + totalSpec;
+        result *= Light0Color * Light0Intensity;
+        result *= OpacityStrength;
+        outColor.rgb = result;
+
+        outColor.a = OpacityStrength;
+    }
+}
+
+//###################################################################
+// TECHNIQUES
+//
+// 
+//###################################################################
+
+technique Opaque
+<
+>
+{
+    pass p0
+    {
+        VertexShader (in appdata, out vOutput) = VS;
+        PixelShader (in vOutput, out fOutput) = FS;
+    }
+}
+
+technique Transparent
+<
+    string Transparency = "Transparent";
+>
+{
+    pass p0
+    {
+        VertexShader (in appdata, out vOutput) = VS;
+        PixelShader (in vOutput, out fOutput) = FS;
+    }
+}
