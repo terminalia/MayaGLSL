@@ -439,13 +439,6 @@ uniform float CubemapStrength
 //-------------------------------------------------------------------------------------
 // WIND
 
-uniform bool WindYEnabled
-<
-    string UIGroup = "Wind";
-    string UIName = "Enable Y axis animation";
-    int UIOrder = 80;
-> = false;
-
 uniform float WindSpeed
 <
 	string UIGroup = "Wind";
@@ -453,7 +446,7 @@ uniform float WindSpeed
 	string UIName = "Wind Speed";
     float UIMin = 0;
 	float UIMax = 10;
-	int UIOrder = 81;
+	int UIOrder = 80;
 > = 0.0f;
 
 uniform float SwayRigidness
@@ -463,7 +456,7 @@ uniform float SwayRigidness
 	string UIName = "Sway Rigidness";
     float UIMin = 0;
 	float UIMax = 10;
-	int UIOrder = 82;
+	int UIOrder = 81;
 > = 0.1f;
 
 uniform float SwayMax
@@ -473,7 +466,7 @@ uniform float SwayMax
 	string UIName = "Sway Max";
     float UIMin = 0;
 	float UIMax = 10;
-	int UIOrder = 83;
+	int UIOrder = 82;
 > = 0.1f;
 
 uniform float WindYOffset
@@ -483,7 +476,7 @@ uniform float WindYOffset
 	string UIName = "Y Offset";
     float UIMin = 0;
 	float UIMax = 10;
-	int UIOrder = 84;
+	int UIOrder = 83;
 > = 0.0f;
 //-------------------------------------------------------------------------------------
 // TRANSPARENCY
@@ -544,10 +537,6 @@ GLSLShader VS
         inPosition.x += (step(0, inPosition.y - WindYOffset) * x * SwayMax);
         inPosition.z += (step(0, inPosition.y - WindYOffset) * z * SwayMax);
         
-        if (WindYEnabled) {
-            float y = sin(inPosition.y / SwayRigidness + (time * WindSpeed));
-            inPosition.y += (step(0, inPosition.y - WindYOffset) * y * SwayMax);
-        }
         //Compute MVP vertex position
         vec4 mvpPos = WorldViewProjection * inPosition;
         //Compute World Space normal
