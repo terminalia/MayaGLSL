@@ -357,6 +357,57 @@ uniform float uvOffsetY
     int UIOrder = 54;
 > = 0.0f;
 
+//-------------------------------------------------------------------------------------
+// REFLECTION (CUBEMAP)
+
+uniform textureCube CubemapTexture
+<
+    string UIName = "Reflection Cubemap";
+    string ResourceType = "Cube";
+    string UIGroup = "Cubemap";
+    int UIOrder = 60;
+>;
+
+uniform samplerCube uCubemapSampler = sampler_state
+{
+    Texture = <CubemapTexture>;
+    TEXTURE_MIN_FILTER = LINEAR_MIPMAP_LINEAR;
+    TEXTURE_MAG_FILTER = LINEAR;
+};
+
+uniform float CubemapBlur
+<
+    string UIGroup = "Cubemap";
+    string UIName = "Cubemap Blur";
+    float UIMin = 0.0f;
+    float UIMax = 10.0f;
+    float UIStep = 0.01f;
+    string UIWidget = "slider";
+    int UIOrder = 61;
+> = 0.0f;
+
+uniform float CubemapContrast
+<
+    string UIGroup = "Cubemap";
+    string UIName = "Cubemap Contrast";
+    float UIMin = 0.0f;
+    float UIMax = 10.0f;
+    float UIStep = 0.01f;
+    string UIWidget = "slider";
+    int UIOrder = 62;
+> = 1.0f;
+
+uniform float CubemapStrength
+<
+    string UIGroup = "Cubemap";
+    string UIName = "Cubemap Strength";
+    float UIMin = 0.0f;
+    float UIMax = 10.0f;
+    float UIStep = 0.01f;
+    string UIWidget = "slider";
+    int UIOrder = 63;
+> = 0.0f;
+
 
 //-------------------------------------------------------------------------------------
 // TRANSPARENCY
@@ -522,6 +573,10 @@ GLSLShader FS
         //AMBIENT LIGHTING
         vec3 ambientColor = lerp(AmbientBottomColor, AmbientTopColor, clamp(dot(vec3(0, 1, 0), worldNormal), 0.0, 1.0));
 
+        //REFLECTION (CUBEMAP)
+        vec3 reflectionVector = -reflect(worldCameraDir, worldNormal);
+        vec4 cubemapTex = textureLod(uCubemapSampler, reflectionVector, CubemapBlur);
+
         //DIFFUSE LIGHTING
         float diffuse = clamp(dot(worldNormal, lightDir), 0.0, 1.0);
         vec3 totalDiffuse = (diffuse * DiffuseColor.rgb);
@@ -558,6 +613,7 @@ GLSLShader FS
         }
         
         vec3 totalSpec = fresnel + specular * SpecularColor;
+        totalSpec += vec3(pow(cubemapTex.r, CubemapContrast), pow(cubemapTex.g, CubemapContrast), pow(cubemapTex.b, CubemapContrast)) * CubemapStrength;
 
         
         //SHADOW
