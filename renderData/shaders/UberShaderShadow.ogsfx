@@ -293,6 +293,56 @@ uniform float NormalMapStrength
 > = 0.0;
 
 //-------------------------------------------------------------------------------------
+// UV MANIPULATION
+uniform vec2 uvSpeedXY 
+<
+    string UIGroup = "UV Settings";
+	string UIName = "UV Animation Speed";
+    int UIOrder = 50;
+> = {0.0f, 0.0f};
+
+uniform float uvTileX 
+<
+    string UIGroup = "UV Settings";
+    string UIWidget = "slider";
+	string UIName = "UV Tile X";
+    float UIMin = 1;
+	float UIMax = 10;
+    int UIOrder = 51;
+> = 1.0f;
+
+uniform float uvTileY
+<
+    string UIGroup = "UV Settings";
+    string UIWidget = "slider";
+	string UIName = "UV Tile Y";
+    float UIMin = 1;
+	float UIMax = 10;
+    int UIOrder = 52;
+> = 1.0f;
+
+uniform float uvOffsetX
+<
+    string UIGroup = "UV Settings";
+    string UIWidget = "slider";
+	string UIName = "UV Offset X";
+    float UIMin = 0;
+	float UIMax = 10;
+    int UIOrder = 53;
+> = 0.0f;
+
+uniform float uvOffsetY
+<
+    string UIGroup = "UV Settings";
+    string UIWidget = "slider";
+	string UIName = "UV Offset Y";
+    float UIMin = 0;
+	float UIMax = 10;
+    int UIOrder = 54;
+> = 0.0f;
+
+
+//-------------------------------------------------------------------------------------
 // TRANSPARENCY
 
 uniform float OpacityStrength 
@@ -434,8 +484,8 @@ GLSLShader FS
 
     void main()
     {
-        vec2 uv = outUV;
-
+        vec2 uv = outUV * vec2(uvTileX, uvTileY) + vec2(uvOffsetX * 0.1, uvOffsetY * 0.1) + (time * uvSpeedXY);;
+        
         vec3 worldNormal = normalize(outWorldNormal);
         if (NormalMapEnabled) {
             vec3 tangent = normalize(outWorldTangent.xyz);
