@@ -218,6 +218,26 @@ uniform float SpecularPower
     int UIOrder = 23;
 > = 12;
 
+uniform bool SpecularTextureEnabled
+<
+    string UIGroup = "Specularity";
+    string UIName = "Specular Texture";
+    int UIOrder = 24;
+> = false;
+
+uniform texture2D SpecularTexture
+<
+    string UIGroup = "Specularity";
+    string UIName = "Specular Texture";
+    string ResourceType = "2D";
+    int UIOrder = 25;
+>;
+
+uniform sampler2D SpecularSampler = sampler_state
+{
+    Texture = <SpecularTexture>;
+};
+
 //-------------------------------------------------------------------------------------
 // FRESNEL
 
@@ -379,7 +399,7 @@ GLSLShader FS
         if (DiffuseTextureEnabled) {
             vec4 diffuseTex = texture(DiffuseSampler, uv);
             totalDiffuse *= diffuseTex.rgb;
-            
+
             if (DiffuseTextureAlphaEnabled) {
                 float diffuseTexAlpha = diffuseTex.a;
                 if (diffuseTexAlpha < CutOffAmount)
@@ -393,7 +413,7 @@ GLSLShader FS
         
         //Fresnel
         vec3 fresnel = pow(1 - clamp(dot(worldCameraDir, worldNormal), 0.0, 1.0), FresnelPower) * FresnelColor;
-
+        
         if (BlinnEnabled) {
             specular = computeBlinn(diffuse, lightDir, worldNormal, worldCameraDir);
         }
@@ -401,6 +421,12 @@ GLSLShader FS
             specular = computePhong(lightDir, worldNormal, worldCameraDir);
         }
 
+        if (SpecularTextureEnabled) {
+            vec4 specularTex = texture(SpecularSampler, uv);
+            specular *= specularTex.r;
+            fresnel *= specularTex.b;
+        }
+        
         vec3 totalSpec = fresnel + specular * SpecularColor;
 
         
