@@ -26,6 +26,22 @@ uniform float time : Time
 >;
 
 //-------------------------------------------------------------------------------------
+// AMBIENT LIGHT
+uniform vec4 AmbientTopColor
+<   
+    string UIGroup = "Lights";
+    string UIName = "Ambient Top Color";
+	string UIWidget = "Color";
+> = {0.0, 0.0, 0.0, 1.0};
+
+uniform vec4 AmbientBottomColor
+<   
+    string UIGroup = "Lights";
+    string UIName = "Ambient Bottom Color";
+	string UIWidget = "Color";
+> = {0.0, 0.0, 0.0, 1.0};
+
+//-------------------------------------------------------------------------------------
 // DIRECTIONAL LIGHT
 uniform int Light0Type : LIGHTTYPE
 <
@@ -503,6 +519,9 @@ GLSLShader FS
         vec3 lightDir = normalize(-Light0Dir);
         vec3 worldCameraDir = normalize(outWorldCameraDir);
 
+        //AMBIENT LIGHTING
+        vec4 ambientColor = lerp(AmbientBottomColor, AmbientTopColor, clamp(dot(vec3(0, 1, 0), vec3(worldNormal.xyz)), 0.0, 1.0));
+
         //DIFFUSE LIGHTING
         float diffuse = clamp(dot(worldNormal, lightDir), 0.0, 1.0);
         vec3 totalDiffuse = (diffuse * DiffuseColor.rgb);
@@ -545,7 +564,7 @@ GLSLShader FS
         float shadowMap = computeShadowMap(outWorldPos.xyz);
         totalDiffuse *= shadowMap;
 
-        vec3 result = totalDiffuse + totalSpec;
+        vec3 result = ambientColor.rgb + totalDiffuse + totalSpec;
         result *= OpacityStrength;
         outColor.rgb = result;
 
@@ -556,7 +575,7 @@ GLSLShader FS
 
 technique Main
 <
-    string Transparency = "Transparent";
+    //string Transparency = "Transparent";
 >
 {
     pass p0
