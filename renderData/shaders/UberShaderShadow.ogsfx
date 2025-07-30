@@ -181,6 +181,27 @@ uniform float SpecularPower
 > = 12;
 
 //-------------------------------------------------------------------------------------
+// FRESNEL
+
+uniform vec3 FresnelColor
+<
+    string UIGroup = "Fresnel";
+    string UIName = "Fresnel Color";
+	string UIWidget = "Color";
+    int UIOrder = 30;
+> = {0.0, 0.0, 0.0};
+
+uniform float FresnelPower 
+<
+    string UIGroup = "Fresnel";
+	string UIWidget = "slider";
+	string UIName = "Fresnel Strength";
+	float UIMin = 0;
+	float UIMax = 10;
+    int UIOrder = 31;
+> = 0.6;
+
+//-------------------------------------------------------------------------------------
 // TRANSPARENCY
 
 uniform float OpacityStrength 
@@ -319,6 +340,10 @@ GLSLShader FS
 
         //SPECULAR LIGHTING
         float specular = 0.0;
+        
+        //Fresnel
+        vec3 fresnel = pow(1 - clamp(dot(worldCameraDir, worldNormal), 0.0, 1.0), FresnelPower) * FresnelColor;
+
         if (BlinnEnabled) {
             specular = computeBlinn(diffuse, lightDir, worldNormal, worldCameraDir);
         }
@@ -326,8 +351,9 @@ GLSLShader FS
             specular = computePhong(lightDir, worldNormal, worldCameraDir);
         }
 
-        vec3 totalSpec = specular * SpecularColor;
+        vec3 totalSpec = fresnel + specular * SpecularColor;
 
+        
         //SHADOW
         float shadowMap = computeShadowMap(outWorldPos.xyz);
         totalDiffuse *= shadowMap;
