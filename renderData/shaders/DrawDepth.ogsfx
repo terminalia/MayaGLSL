@@ -1,0 +1,64 @@
+//###################################################################
+// MATRICES
+//
+// Matrices coming from application (Maya)
+//###################################################################
+
+uniform mat4 WorldViewProjection : WorldViewProjection < string UIWidget="None"; >;
+uniform mat4 WorldInverseTranspose : WorldInverseTranspose < string UIWidget="None"; >;
+uniform mat4 ViewInverse : ViewInverse < string UIWidget="None"; >;
+uniform mat4 World : World < string UIWidget="None"; >;
+uniform mat4 shadowViewPrj : ViewProjection < string UIWidget = "None"; >;
+
+uniform vec2 ShadowFilterTaps[10] < string UIWidget = "None"; > = {{-0.84052, -0.073954}, {-0.326235, -0.40583}, {-0.698464, 0.457259}, {-0.203356, 0.620585}, {0.96345, -0.194353}, {0.473434, -0.480026}, {0.519454, 0.767034}, {0.185461, -0.894523}, {0.507351, 0.064963}, {-0.321932, 0.595435}};
+ 
+uniform float FarPlane 
+<
+    string UIGroup = "Z-Depth";
+	string UIWidget = "slider";
+	string UIName = "Shadow Strength";
+	float UIMin = 0;
+	float UIMax = 1000;
+> = 0;
+
+
+attribute appdata {
+    vec4 aPosition    : POSITION;
+};
+
+attribute vOutput {
+    float outZDepth;
+};
+
+attribute fOutput 
+{
+    vec4 outColor : COLOR0;
+}
+
+GLSLShader VS
+{
+    void main()
+    {
+        gl_Position = WorldViewProjection * aPosition;
+        outZDepth = gl_Position.z / FarPlane;
+    }
+}
+
+GLSLShader FS
+{
+
+    void main()
+    {
+        outColor = vec4(1 - outZDepth, 1 - outZDepth, 1 - outZDepth, 1.0);
+    }
+}
+
+
+technique Main
+{
+    pass p0
+    {
+        VertexShader (in appdata, out vOutput) = VS;
+        PixelShader (in vOutput, out fOutput) = FS;
+    }
+}
