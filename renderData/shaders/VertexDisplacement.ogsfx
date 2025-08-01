@@ -12,6 +12,13 @@ uniform mat4 shadowViewPrj : ViewProjection < string UIWidget = "None"; >;
 
 uniform vec2 ShadowFilterTaps[10] < string UIWidget = "None"; > = {{-0.84052, -0.073954}, {-0.326235, -0.40583}, {-0.698464, 0.457259}, {-0.203356, 0.620585}, {0.96345, -0.194353}, {0.473434, -0.480026}, {0.519454, 0.767034}, {0.185461, -0.894523}, {0.507351, 0.064963}, {-0.321932, 0.595435}};
  
+ //Animation time
+uniform float time : Time
+<
+    string UIWidget = "None";
+>;
+
+
 uniform int Light0Type : LIGHTTYPE
 <
 	string UIName = "Light 0 Type";
@@ -139,6 +146,55 @@ uniform float DisplacementAmount
 	int UIOrder = 21;
 > = 0.6;
 
+//-------------------------------------------------------------------------------------
+// UV MANIPULATION
+uniform vec2 uvSpeedXY 
+<
+    string UIGroup = "UV Settings";
+	string UIName = "UV Animation Speed";
+    int UIOrder = 60;
+> = {0.0f, 0.0f};
+
+uniform float uvTileX 
+<
+    string UIGroup = "UV Settings";
+    string UIWidget = "slider";
+	string UIName = "UV Tile X";
+    float UIMin = 1;
+	float UIMax = 10;
+    int UIOrder = 61;
+> = 1.0f;
+
+uniform float uvTileY
+<
+    string UIGroup = "UV Settings";
+    string UIWidget = "slider";
+	string UIName = "UV Tile Y";
+    float UIMin = 1;
+	float UIMax = 10;
+    int UIOrder = 62;
+> = 1.0f;
+
+uniform float uvOffsetX
+<
+    string UIGroup = "UV Settings";
+    string UIWidget = "slider";
+	string UIName = "UV Offset X";
+    float UIMin = 0;
+	float UIMax = 10;
+    int UIOrder = 63;
+> = 0.0f;
+
+uniform float uvOffsetY
+<
+    string UIGroup = "UV Settings";
+    string UIWidget = "slider";
+	string UIName = "UV Offset Y";
+    float UIMin = 0;
+	float UIMax = 10;
+    int UIOrder = 64;
+> = 0.0f;
+
 
 attribute appdata {
     vec4 aPosition    : POSITION;
@@ -167,8 +223,10 @@ GLSLShader VS
 		vec4 inPosition = aPosition;
 
 		outUV = vec2(aUV.x, 1.0 - aUV.y);
+		vec2 uv = outUV * vec2(uvTileX, uvTileY) + vec2(uvOffsetX * 0.1, uvOffsetY * 0.1) + (time * uvSpeedXY);;
+        
 
-		vec4 displacementTex = textureLod(DisplacementSampler, outUV, 0.0);
+		vec4 displacementTex = textureLod(DisplacementSampler, uv, 0.0);
 
 		inPosition.xyz += aNormal * displacementTex.r * DisplacementAmount;
 
