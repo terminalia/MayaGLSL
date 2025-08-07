@@ -1,0 +1,719 @@
+#version 410
+
+//**************************************************************************/
+// Copyright (c) 2014 Autodesk, Inc.
+// All rights reserved.
+// 
+// These coded instructions, statements, and computer programs contain
+// unpublished proprietary information written by Autodesk, Inc., and are
+// protected by Federal copyright law. They may not be disclosed to third
+// parties or copied or duplicated in any form, in whole or in part, without
+// the prior written consent of Autodesk, Inc.
+//**************************************************************************/
+
+#define PI 3.14
+
+// World transformation.
+uniform mat4 gWXf : World;
+
+uniform mat4 viewInv : ViewInverse; 
+
+uniform mat4 viewMat : View; 
+
+uniform mat4 projMat : Projection; 
+
+// World-view-projection transformation.
+uniform mat4 gWVPXf : WorldViewProjection;
+
+uniform mat4 viewPrj : ViewProjection;
+
+uniform vec2 viewPixSize : ViewportPixelSize
+<
+	string UIWidget = "None";
+>;
+
+//-------------------------------------------------------------------------------------
+// TESSELLATION
+uniform float FlatTessellationBlend 
+<
+    string UIWidget = "None";
+> = 0.0;
+
+uniform float ClippingBiasAdd
+<
+    string UIWidget = "None";
+> = 10.0;
+
+uniform float DisplacementOffset 
+<
+    string UIGroup = "Tessellation";
+    string UIName = "Displacement Offset";
+    string UIWidget = "slider";
+    float UIMin = 0.0;
+    float UIMax = 1.0;
+    int UIOrder = 0;
+> = 0.5;
+
+uniform float DisplacementMultiplier
+<
+    string UIGroup = "Tessellation";
+    string UIName = "Displacement Multiplier";
+    string UIWidget = "slider";
+    float UIMin = 0.0;
+    float UIMax = 50.0;
+    int UIOrder = 1;
+> = 5.0;
+
+uniform float numInnerLevelsPer100Pix
+<
+    string UIGroup = "Tessellation";
+    string UIName = "Inner levels/100 *100 pix";
+    string UIWidget = "slider";
+    float UIMin = 0.0;
+    float UIMax = 80.0;
+    int UIOrder = 2;
+> = 40;
+
+
+uniform float numOuterLevelsPer30PixSeg
+<
+    string UIGroup = "Tessellation";
+    string UIName = "Outer levels/30 pix";
+    string UIWidget = "slider";
+    float UIMin = 0.0;
+    float UIMax = 24.0;
+    int UIOrder = 3;
+ > = 12;
+
+uniform float TransparencyStd <
+ string UIName = "Transparency"; 
+ > = 0.0;
+ 
+
+
+uniform texture2D gHeightMap  <
+    string UIGroup = "Tessellation";
+	string ResourceName = "moonHeightMapSharp.jpg";
+	string ResourceType = "2D";
+    string UIName = "Height Map";
+	int mipmaplevels = 0;
+    int UIOrder = 4;
+>;
+
+uniform sampler2D gHeightMapSamp = sampler_state
+{
+    texture = <gHeightMap>;
+};
+
+uniform float texScale <
+    string UIGroup = "Tessellation";
+    string UIName = "Height map scale factor"; 
+    string UIWidget = "slider";
+    float UIMin = 0.0;
+    float UIMax = 10.0;
+    int UIOrder = 5;
+> = 1.0f;
+
+//-------------------------------------------------------------------------------------
+// DIFFUSE
+uniform vec3 DiffuseColor
+<   
+    string UIGroup = "Diffuse";
+    string UIName = "Diffuse Color";
+	string UIWidget = "Color";
+    int UIOrder = 10;
+> = {1.0, 1.0, 1.0};
+
+//-------------------------------------------------------------------------------------
+// NORMAL MAP
+uniform bool NormalMapEnabled
+<
+    string UIGroup = "Normal Map";
+    string UIName = "Enable Normal Map";
+    int UIOrder = 20;
+> = false;
+
+
+uniform texture2D NormalMapTexture
+<
+    string UIGroup = "Normal Map";
+    string UIName = "Normal Map Texture";
+    string ResourceType = "2D";
+    int UIOrder = 21;
+>;
+
+uniform sampler2D NormalMapSampler = sampler_state
+{
+    Texture = <NormalMapTexture>;
+};
+
+uniform float NormalMapStrength 
+<
+    string UIGroup = "Normal Map";
+	string UIWidget = "slider";
+	string UIName = "Normal Map Strength";
+	float UIMin = 0;
+	float UIMax = 5;
+    int UIOrder = 22;
+> = 1.0;
+
+//------------------------------------
+// Lighting
+//------------------------------------
+uniform vec3 SpecularColor : Specular
+<
+	string UIGroup = "Specular";
+	string UIName = "Specular Color";
+	string UIWidget = "ColorPicker";
+	int UIOrder = 400;
+> = {1.0f, 1.0f, 1.0f };
+
+uniform float SpecularPower
+<
+	string UIGroup = "Specular";
+	string UIWidget = "Slider";
+	float UIMin = 0.0;	// 0 for anisotropic
+	float UISoftMax = 100.0;
+	float UIMax = 1000000;
+	float UIStep = 0.01;
+	string UIName = "Specular Power";
+	int UIOrder = 401;
+> = 20.0;
+
+uniform float SpecularStrength
+<
+	string UIGroup = "Specular";
+	string UIWidget = "Slider";
+	float UIMin = 0.0;
+	float UIMax = 10;
+	float UIStep = 0.01;
+	string UIName = "Specular Strength";
+	int UIOrder = 402;
+> = 1.0;
+
+
+// ---------------------------------------------
+// Light 0 GROUP
+// ---------------------------------------------
+// This value is controlled by Maya to tell us if a light should be calculated
+// For example the artist may disable a light in the scene, or choose to see only the selected light
+// This flag allows Maya to tell our shader not to contribute this light into the lighting
+uniform bool light0Enable : LIGHTENABLE
+<
+	string Object = "Light 0";	// UI Group for lights, auto-closed
+	string UIName = "Enable Light 0";
+	int UIOrder = 20;
+	> = false;	// maya manages lights itself and defaults to no lights
+
+
+// follows LightParameterInfo::ELightType
+// spot = 2, point = 3, directional = 4, ambient = 5,
+uniform int light0Type : LIGHTTYPE
+<
+	string Object = "Light 0";
+	string UIName = "Light 0 Type";
+	string UIFieldNames ="None:Default:Spot:Point:Directional:Ambient";
+	int UIOrder = 21;
+	float UIMin = 0;
+	float UIMax = 5;
+	float UIStep = 1;
+> = 2;	// default to spot so the cone angle etc work when "Use Shader Settings" option is used
+
+uniform vec3 light0Pos : POSITION 
+< 
+	string Object = "Light 0";
+	string UIName = "Light 0 Position"; 
+	string Space = "World"; 
+	int UIOrder = 22;
+> = {100.0f, 100.0f, 100.0f}; 
+
+uniform vec3 light0Color : LIGHTCOLOR 
+<
+	string Object = "Light 0";
+	string UIName = "Light 0 Color"; 
+	string UIWidget = "Color"; 
+	int UIOrder = 23;
+> = { 1.0f, 1.0f, 1.0f};
+
+uniform float light0Intensity : LIGHTINTENSITY 
+<
+	string Object = "Light 0";
+	string UIName = "Light 0 Intensity"; 
+	float UIMin = 0.0;
+	float UIMax = 10;
+	float UIStep = 0.01;
+	int UIOrder = 24;
+> = { 1.0f };
+
+uniform vec3 Light0Dir : DIRECTION 
+< 
+	string Object = "Light 0";
+	string UIName = "Light 0 Direction"; 
+	string Space = "World"; 
+	int UIOrder = 25;
+> = {100.0f, 100.0f, 100.0f}; 
+
+
+uniform float light0ConeAngle : HOTSPOT // In radians
+<
+	string Object = "Light 0";
+	string UIName = "Light 0 Cone Angle"; 
+	float UIMin = 0;
+	float UIMax = PI/2;
+	int UIOrder = 26;
+> = { 0.46f };
+
+uniform float light0FallOff : FALLOFF // In radians. Sould be HIGHER then cone angle or lighted area will invert
+<
+	string Object = "Light 0";
+	string UIName = "Light 0 Penumbra Angle"; 
+	float UIMin = 0;
+	float UIMax = PI/2;
+	int UIOrder = 27;
+> = { 0.7f };
+
+uniform float light0AttenScale : DECAYRATE
+<
+	string Object = "Light 0";
+	string UIName = "Light 0 Decay";
+	float UIMin = 0.0;
+	float UIMax = 20.0;
+	float UIStep = 0.01;
+	int UIOrder = 28;
+> = {0.0};
+
+uniform mat4 light0Matrix : SHADOWMAPMATRIX		
+< 
+	string Object = "Light 0";
+	string UIWidget = "None"; 
+>;
+
+uniform int DiffuseModel
+<
+	string UIGroup = "Diffuse";
+	string UIName = "Diffuse Model";
+	string UIFieldNames ="Lambert:Soften Diffuse (Hair)";
+	float UIMin = 0;
+	float UIMax = 1;
+	float UIStep = 1;
+	int UIOrder = 198;
+> = 0;
+
+// Calculate a light:
+struct lightOut
+{
+	float Specular;
+	vec3 Color;
+};
+
+
+
+//Data from Maya
+attribute appdata
+{
+	vec3 aPosition : POSITION;
+	vec3 aNormal : NORMAL;
+	vec2 aUV : TEXCOORD0;
+};
+
+//Vertex to Tessellation Control
+attribute vOutput
+{
+	vec4 vNormal : NORMAL;
+	vec4 vWorldPosition : TEXCOORD0;
+	vec4 vUV : TEXCOORD2;
+};
+
+//Tessellation Control to Tessellation Eval
+attribute TCSDATA
+{
+	vec3 CP1 : TEXCOORD0;
+	vec3 CP2 : TEXCOORD1;
+	vec3 DominantNormalE0 : TEXCOORD2;
+	vec3 DominantNormalE1 : TEXCOORD3;
+	vec3 DominantNormalCorner : TEXCOORD4;
+	vec4 tcsNormal : NORMAL;
+	vec4 tcsWorldPosition : TEXCOORD5;
+	vec4 tcsUV : TEXCOORD6;
+};
+
+//Tessellation to Fragment
+attribute tOutput
+{
+	vec4 tNormal : NORMAL;
+    vec4 tTangent : TANGENT;
+	vec4 tWorldPosition : TEXCOORD0;
+	vec4 tUV : TEXCOORD2;
+	vec4 colorIN : COLOR0;
+};
+
+attribute pixelOut 
+{
+    vec4 colorOut : COLOR0;
+}
+
+
+
+// Vertex shader.
+GLSLShader VS
+{
+    void main()
+    {		
+		vec3 MulOp = ((mat3(gWXf)) * aNormal);
+		vec3 NormalN = normalize(MulOp);
+		vec4 WorldNormal = vec4(NormalN.xyz, 1.0);
+		VS_OUT.vNormal = WorldNormal;
+		vec4 WorldPos = (gWXf * vec4(aPosition, 1));
+		VS_OUT.vWorldPosition = WorldPos;
+
+		vec4 OutUVs = vec4(aUV.x, aUV.y, 0.0, 0.0);
+		VS_OUT.vUV = OutUVs * texScale;
+		gl_Position = VS_OUT.vWorldPosition;	
+		
+    }
+}
+
+
+
+patchsize 3;
+GLSLShader ShaderTessControl
+{
+vec3 ComputeCP(vec3 posA, vec3 posB, vec3 normA)
+{
+	return (2.0 * posA + posB - (dot((posB - posA), normA) * normA)) / 3.0;
+}
+
+
+float IsClipped(vec4 clipPos, float clipBias)
+{
+	float W = clipPos.w + clipBias;
+	return (-W <= clipPos.x && clipPos.x <= W && -W <= clipPos.y && clipPos.y <= W && -W <= clipPos.z && clipPos.z <= W) ? 0.0 : 1.0;
+}
+
+
+float ComputeClipping(vec3 cpA, vec3 cpB, vec3 cpC, float clipBias, mat4 vprj)
+{
+	vec4 projPosA = vprj * vec4(cpA,1);
+	vec4 projPosB = vprj * vec4(cpB,1);
+	vec4 projPosC = vprj * vec4(cpC,1);
+	return min(min(IsClipped(projPosA, clipBias), IsClipped(projPosB, clipBias)), IsClipped(projPosC, clipBias));
+}
+
+void ComputeAllLevels(vec3 cpA, vec3 cpB, vec3 cpC, mat4 mVPrj, bool clipAway)
+{
+
+    if(clipAway == true)
+	{
+	  gl_TessLevelInner[0] = 0.0;
+	
+	  gl_TessLevelOuter[0] = 0.0;
+	  gl_TessLevelOuter[1] = 0.0;
+	  gl_TessLevelOuter[2] = 0.0;	
+	  return;
+	}
+
+	//Calculate Inner Level
+	vec4 vViewPosA = viewMat * vec4(cpA,1);
+	vec4 vViewPosB = viewMat * vec4(cpB,1);
+	vec4 vViewPosC = viewMat * vec4(cpC,1);
+	
+	vViewPosA = vViewPosA / vViewPosA.w;
+	vViewPosB = vViewPosB / vViewPosB.w;
+	vViewPosC = vViewPosC / vViewPosC.w;
+	
+	vec3 ABView = vViewPosB.xyz - vViewPosA.xyz;
+	vec3 ACView = vViewPosC.xyz - vViewPosA.xyz;
+	
+	vec3 triCenter = (vViewPosA.xyz+vViewPosB.xyz+vViewPosC.xyz)/3;
+	
+	float mulLengths = length(ABView) * length(ACView);
+	float cosTheta = dot(ABView,ACView)/(mulLengths);
+	float areaTriView = 0.5 * mulLengths * sqrt(1-cosTheta*cosTheta);
+	
+	//hypothetical 3d circle that has same area and that faces the camera
+	float hypoRadius = sqrt(areaTriView /PI);
+	vec3 hypoViewCirclePoint = triCenter + vec3(hypoRadius,0.0,0.0);
+	
+	vec4 vProjPosCenter = projMat * vec4(triCenter,1.0);
+	vec4 vProjPosRadPoint = projMat * vec4(hypoViewCirclePoint,1.0);
+	
+	vProjPosCenter = vProjPosCenter / vProjPosCenter.w;
+	vProjPosRadPoint = vProjPosRadPoint / vProjPosRadPoint.w;
+	
+	float newRadius = abs(vProjPosCenter - vProjPosRadPoint).x*0.5;
+	
+	float newArea = PI * newRadius * newRadius * viewPixSize.x * viewPixSize.y;
+		
+	gl_TessLevelInner[0] = numInnerLevelsPer100Pix * sqrt(newArea / (100*100));
+	
+	
+	
+	//Calculate Outer Levels
+	vec4 vProjPosA = mVPrj * vec4(cpA,1);
+    vec4 vProjPosB = mVPrj * vec4(cpB,1);
+    vec4 vProjPosC = mVPrj * vec4(cpC,1);	
+    
+    //make in range [0; 1]
+    vProjPosA = vProjPosA * 0.5 / vProjPosA.w + 0.5;
+    vProjPosB = vProjPosB * 0.5 / vProjPosB.w + 0.5;
+    vProjPosC = vProjPosC * 0.5 / vProjPosC.w + 0.5;
+    
+    //convert to pixels
+    vProjPosA.x = vProjPosA.x * viewPixSize.x;
+    vProjPosB.x = vProjPosB.x * viewPixSize.x;
+    vProjPosC.x = vProjPosC.x * viewPixSize.x;
+    vProjPosA.y = vProjPosA.y * viewPixSize.y;
+    vProjPosB.y = vProjPosB.y * viewPixSize.y;
+    vProjPosC.y = vProjPosC.y * viewPixSize.y;
+		
+	//gl_TessLevelOuter[0] corresponds to gl_InvocationID 1 and 2
+	//gl_TessLevelOuter[1] corresponds to gl_InvocationID 0 and 1
+	//gl_TessLevelOuter[2] corresponds to gl_InvocationID 2 and 0
+	
+	gl_TessLevelOuter[1] = length( vProjPosA.xy - vProjPosB.xy ) * numOuterLevelsPer30PixSeg / 30;
+	gl_TessLevelOuter[0] = length( vProjPosB.xy - vProjPosC.xy ) * numOuterLevelsPer30PixSeg / 30;
+	gl_TessLevelOuter[2] = length( vProjPosC.xy - vProjPosA.xy ) * numOuterLevelsPer30PixSeg / 30;
+}
+
+void main(void)
+{
+	//Make sure that PNAEN18 is chosen in technique annotation
+	uint index = gl_InvocationID;
+	uint nextIndex = index < 2 ? index + 1 : 0;
+	uint neighborIndex = 3 + 2 * index;
+	uint neighborNextIndex = neighborIndex + 1;
+	vec3 myCP, neighborCP;
+	myCP = ComputeCP(TCS_IN[index].vWorldPosition.xyz, TCS_IN[nextIndex].vWorldPosition.xyz, TCS_IN[index].vNormal.xyz);
+	neighborCP = ComputeCP(TCS_IN[neighborIndex].vWorldPosition.xyz, TCS_IN[neighborNextIndex].vWorldPosition.xyz, TCS_IN[neighborIndex].vNormal.xyz);
+	TCS_OUT[gl_InvocationID].CP1 = (myCP + neighborCP) / 2;
+	myCP = ComputeCP(TCS_IN[nextIndex].vWorldPosition.xyz, TCS_IN[index].vWorldPosition.xyz, TCS_IN[nextIndex].vNormal.xyz);
+	neighborCP = ComputeCP(TCS_IN[neighborNextIndex].vWorldPosition.xyz, TCS_IN[neighborIndex].vWorldPosition.xyz, TCS_IN[neighborNextIndex].vNormal.xyz);
+	TCS_OUT[gl_InvocationID].CP2 = (myCP + neighborCP) / 2;
+
+	if(index == 2) {
+	    vec3 f3E = (TCS_OUT[0].CP1 + TCS_OUT[0].CP2 + TCS_OUT[1].CP1 + TCS_OUT[1].CP2 + TCS_OUT[2].CP1 + TCS_OUT[2].CP2) / 6.0;
+	    vec3 f3V = (TCS_OUT[0].tcsWorldPosition.xyz + TCS_OUT[1].tcsWorldPosition.xyz + TCS_OUT[2].tcsWorldPosition.xyz) / 3.0;
+	    vec3 CPCenter = f3E + ((f3E - f3V) / 2.0);
+	    float Clipped0 = ComputeClipping(TCS_IN[0].vWorldPosition.xyz, TCS_OUT[0].CP1, TCS_OUT[0].CP2, ClippingBiasAdd, viewPrj);
+	    float Clipped1 = ComputeClipping(TCS_IN[1].vWorldPosition.xyz, TCS_OUT[1].CP1, TCS_OUT[1].CP2, ClippingBiasAdd, viewPrj);
+	    float Clipped2 = ComputeClipping(TCS_IN[2].vWorldPosition.xyz, TCS_OUT[2].CP1, TCS_OUT[2].CP2, ClippingBiasAdd, viewPrj);
+		
+		bool clipAway = false;
+		vec4 centerViewPos = viewPrj * vec4(CPCenter, 1);
+		float centerClipped = IsClipped(centerViewPos, ClippingBiasAdd);
+		clipAway = !(Clipped0 != 0 && Clipped1 != 0 && Clipped2 != 0 && centerClipped != 0 );
+		//gl_TessLevelOuter[0] = gl_TessLevelOuter[1] = gl_TessLevelOuter[2] = 2.0 * float(clipAway);
+		//gl_TessLevelInner[0] = ( gl_TessLevelOuter[0] + gl_TessLevelOuter[1] + gl_TessLevelOuter[2] ) / 3.0;
+
+		ComputeAllLevels(TCS_IN[0].vWorldPosition.xyz, TCS_IN[1].vWorldPosition.xyz, TCS_IN[2].vWorldPosition.xyz, viewPrj, !clipAway);
+
+	}
+	uint dominantEdgeIndex = 9 + 2 * index;
+	uint dominantEdgeNextIndex = dominantEdgeIndex + 1;
+	uint dominantVertexIndex = 15 + index;
+	TCS_OUT[gl_InvocationID].DominantNormalE0 = TCS_IN[dominantEdgeNextIndex].vNormal.xyz;
+	TCS_OUT[gl_InvocationID].DominantNormalE1 = TCS_IN[dominantEdgeIndex].vNormal.xyz;
+	TCS_OUT[gl_InvocationID].DominantNormalCorner = TCS_IN[dominantVertexIndex].vNormal.xyz;
+	TCS_OUT[gl_InvocationID].tcsNormal = TCS_IN[index].vNormal;
+	TCS_OUT[gl_InvocationID].tcsWorldPosition = TCS_IN[index].vWorldPosition;
+	TCS_OUT[gl_InvocationID].tcsUV = TCS_IN[index].vUV;
+}
+
+}
+
+
+// -------------------------------------- ShaderTessEval --------------------------------------
+tesparams (triangles, fractional_odd_spacing, cw);
+GLSLShader ShaderTessEval
+{
+vec3 PickDominant( vec3 vec,
+			float U, float V, float W,
+			vec3 DE0A, vec3 DE0B,
+			vec3 DE1A, vec3 DE1B,
+			vec3 DE2A, vec3 DE2B,
+			vec3 DV0, vec3 DV1, vec3 DV2 )
+{
+	vec3 dominantVector = vec;
+
+	float edgeThreshold = 0.0001f;
+	int edgeU = (U == 0) ? 1 : 0;
+	int edgeV = (V == 0) ? 1 : 0;
+	int edgeW = (W == 0) ? 1 : 0;
+
+	int corner = ((edgeU + edgeV + edgeW) == 2) ? 1 : 0;
+	int innerarea = ((edgeU + edgeV + edgeW) == 0) ? 1 : 0;
+
+	if (innerarea != 1)
+	{
+		if (corner == 1)
+		{
+			if (U > 1.0 - edgeThreshold)
+				dominantVector = DV1;
+			else if (V > 1.0 - edgeThreshold)
+				dominantVector = DV2;
+			else if (W > 1.0 - edgeThreshold)
+				dominantVector = DV0;	
+		}
+		else
+		{
+			if (edgeU == 1)
+				dominantVector = lerp(DE2A, DE2B, W);
+			else if (edgeV == 1)
+				dominantVector = lerp(DE0A, DE0B, U);
+			else 
+				dominantVector = lerp(DE1A, DE1B, V);
+		}
+	}
+
+	return dominantVector;
+}
+
+void main(void)
+{
+
+	vec3 f3E = (TES_IN[0].CP1 + TES_IN[0].CP2 + TES_IN[1].CP1 + TES_IN[1].CP2 + TES_IN[2].CP1 + TES_IN[2].CP2) / 6.0;
+	vec3 f3V = (TES_IN[0].tcsWorldPosition.xyz + TES_IN[1].tcsWorldPosition.xyz + TES_IN[2].tcsWorldPosition.xyz) / 3.0;
+	vec3 CPCenter = f3E + ((f3E - f3V) / 2.0);
+
+	vec3 BarycentricCoords = gl_TessCoord.zyx; // swizzle axis to match DX
+	float U = BarycentricCoords.x;
+	float V = BarycentricCoords.y;
+	float W = BarycentricCoords.z;
+
+	float UU = U * U;
+	float VV = V * V;
+	float WW = W * W;
+	float UU3 = UU * 3.0;
+	float VV3 = VV * 3.0;
+	float WW3 = WW * 3.0;
+	
+	vec3 position = 
+		TES_IN[0].tcsWorldPosition.xyz * WW * W +
+		TES_IN[1].tcsWorldPosition.xyz * UU * U +
+		TES_IN[2].tcsWorldPosition.xyz * VV * V +
+		TES_IN[0].CP1 * WW3 * U +
+		TES_IN[0].CP2 * W * UU3 +
+		TES_IN[2].CP2 * WW3 * V +
+		TES_IN[1].CP1 * UU3 * V +
+		TES_IN[2].CP1 * W * VV3 +
+		TES_IN[1].CP2 * U * VV3 +
+		CPCenter * 6.0 * W * U * V;
+
+	vec3 flatPosition = 
+		TES_IN[0].tcsWorldPosition.xyz * W +
+		TES_IN[1].tcsWorldPosition.xyz * U +
+		TES_IN[2].tcsWorldPosition.xyz * V;
+
+	position = lerp(position, flatPosition, FlatTessellationBlend);
+
+	TES_OUT.tNormal = TES_IN[0].tcsNormal * W + TES_IN[1].tcsNormal * U + TES_IN[2].tcsNormal * V;
+	TES_OUT.tNormal.xyz = normalize(TES_OUT.tNormal.xyz);
+	TES_OUT.tUV = TES_IN[0].tcsUV * W + TES_IN[1].tcsUV * U + TES_IN[2].tcsUV * V;
+	
+	vec4 Sampler = textureLod(gHeightMapSamp, vec2(TES_OUT.tUV.x, 1-TES_OUT.tUV.y), 0.0);
+	vec3 PNCrackFixNORMAL = normalize( PickDominant(TES_OUT.tNormal.xyz, U, V, W, TES_IN[0].DominantNormalE0, TES_IN[0].DominantNormalE1, TES_IN[1].DominantNormalE0, TES_IN[1].DominantNormalE1, TES_IN[2].DominantNormalE0, TES_IN[2].DominantNormalE1, TES_IN[0].DominantNormalCorner, TES_IN[1].DominantNormalCorner, TES_IN[2].DominantNormalCorner) );
+	vec3 GrayScale = (PNCrackFixNORMAL * ((Sampler.x+Sampler.y+Sampler.z+Sampler.w)/4 - DisplacementOffset));
+   
+	vec3 DisplaceAmount = (DisplacementMultiplier * GrayScale);
+
+	position.xyz += DisplaceAmount;
+
+    //Compute Normals after displacement
+    vec3 tan1 = cross(TES_OUT.tNormal.xyz, vec3(0, 0, 1));
+    vec3 tan2 = cross(TES_OUT.tNormal.xyz, vec3(0, 1, 0));
+    vec3 tangent;
+
+    if (length(tan1) > length(tan2)) {
+        tangent = tan1;
+    }
+    else {
+        tangent = tan2;
+    }
+
+    vec3 bitangent = cross(TES_OUT.tNormal.xyz, tangent);
+
+    vec3 posTangent = position.xyz + tangent * 0.01;
+    vec3 modPosTangent = posTangent + GrayScale;
+
+    vec3 posBitangent = position.xyz + bitangent * 0.01;
+    vec3 modPosBitangent = posBitangent + GrayScale;
+
+    modPosTangent -= position.xyz;
+    modPosBitangent -= position.xyz;
+    TES_OUT.tTangent = vec4(modPosTangent, 0.0);
+
+    vec3 modNormal = (modPosTangent, modPosBitangent);
+    TES_OUT.tNormal.xyz = clamp(modNormal, 0.0, 1.0);
+    //End compute normals
+	
+	gl_Position = vec4(position.xyz, 1);
+	TES_OUT.tWorldPosition = gl_Position;
+	
+	TES_OUT.colorIN = vec4(abs(Sampler.xyz),1.0);
+	
+
+	vec4 WorldViewSpace = (viewPrj * gl_Position);
+	gl_Position = WorldViewSpace;
+}
+
+}
+
+
+//Pixel Shader to show waves
+GLSLShader PS_Wave
+{
+	//the pixel shader
+    void main()
+    {
+        vec4 result;
+        vec2 uv = PS_IN.tUV.xy;
+
+        vec3 normal = PS_IN.tNormal.xyz;
+        if (NormalMapEnabled) {
+            vec3 tangent = PS_IN.tTangent.xyz;
+            vec3 binormal = cross(normal, tangent);
+            binormal *= PS_IN.tNormal.w;
+            mat3 toWorld = mat3(tangent, binormal, normal);
+            vec3 normalTex = texture(NormalMapSampler, uv).xyz * 2 - 1;
+            normalTex.xy *= NormalMapStrength;
+            normalTex = toWorld * normalTex.xyz;
+            normal = normalTex.rgb;
+        }
+
+        vec3 lightDir = normalize(-Light0Dir);
+        vec3 worldCameraDir = normalize( viewInv[3].xyz - PS_IN.tWorldPosition.xyz );
+        
+        float diffuse = clamp(dot(normal, lightDir), 0.0, 1.0);
+        vec3 totalDiffuse = diffuse * DiffuseColor;
+
+        //SPECULAR (BLINN)
+        vec3 halfwayDir = normalize(worldCameraDir + lightDir);
+        float specular = dot(halfwayDir, normal);
+        vec4 litV = lit(diffuse, specular, SpecularPower);
+        specular = SpecularStrength * diffuse * litV.z;
+        vec3 totalSpec = specular * SpecularColor;
+
+        result.rgb = totalDiffuse + totalSpec;
+        colorOut = result;
+    }
+}
+
+
+// Techniques.
+technique Main
+<
+string Transparency = "Opaque";
+string index_buffer_type = "GLSL_PNAEN18";
+>
+{
+    pass p0
+    {
+        VertexShader (in appdata, out vOutput VS_OUT) = VS;
+		TessControlShader (in vOutput TCS_IN, out TCSDATA TCS_OUT) = ShaderTessControl;
+		TessEvaluationShader (in TCSDATA TES_IN, out tOutput TES_OUT) = ShaderTessEval;
+        PixelShader (in tOutput PS_IN, out pixelOut) = PS_Wave;
+    }
+}
+
+
+
