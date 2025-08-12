@@ -442,49 +442,6 @@ GLSLShader FS
         return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
     }
 
-    vec4 RGBMDecode(vec4 rgbm, bool isEncoded) 
-    {
-        return isEncoded ? vec4(6.0 * rgbm.rgb * rgbm.a, rgbm.a) : rgbm;
-    }
-
-    vec3 colorize(vec3 p)
-    {
-        return sign(p) * pow(abs(p), vec3(1)) * 0.5 + vec3(0.5);
-    }
-
-    vec4 SRGBtoLINEAR(vec4 srgbIn)
-    {
-        #ifdef MANUAL_SRGB
-        #   ifdef SRGB_FAST_APPROXIMATION
-                vec3 linOut = pow(srgbIn.xyz,vec3(2.2));
-        #   else //SRGB_FAST_APPROXIMATION
-                vec3 bLess = step(vec3(0.04045),srgbIn.xyz);
-                vec3 linOut = mix( srgbIn.xyz/vec3(12.92), pow((srgbIn.xyz+vec3(0.055))/vec3(1.055),vec3(2.4)), bLess );
-        #   endif //SRGB_FAST_APPROXIMATION
-                return vec4(linOut,srgbIn.w);;
-        #else //MANUAL_SRGB
-                return srgbIn;
-#endif //MANUAL_SRGB
-    }
-
-    vec4 SRGBtoLINEAR(vec4 colorIn, bool isSRGB)
-    {
-        return isSRGB ? SRGBtoLINEAR(colorIn) : colorIn;
-    }
-
-    vec4 tex2D(sampler2D s, vec2 uv, vec4 defaultColor)
-    {
-        return textureSize(s, 0).x > 1 ? texture(s, uv) : defaultColor;
-    }
-
-    float BurleyToMipSimple(float fPerceptualRoughness, float nMipMax)
-    {
-        // https://docs.knaldtech.com/doku.php?id=specular_lys
-        // approximate remap from LdotR based distribution to NdotH
-        float fScale = fPerceptualRoughness*((1+u_BurleyFactor) - u_BurleyFactor*fPerceptualRoughness);    
-        return fScale * nMipMax;
-    }
-
     void main()
     {
         vec3 N = normalize(outWorldNormal).xyz;
