@@ -5,7 +5,7 @@
 //###################################################################
 //#define PI = 3.14159265359
 
-
+#define M_PI 3.141592653589793
 
 uniform mat4 WorldViewProjection : WorldViewProjection < string UIWidget="None"; >;
 uniform mat4 WorldInverseTranspose : WorldInverseTranspose < string UIWidget="None"; >;
@@ -14,7 +14,7 @@ uniform mat4 World : World < string UIWidget="None"; >;
 uniform mat4 shadowViewPrj : ViewProjection < string UIWidget = "None"; >;
 
 uniform vec2 ShadowFilterTaps[10] < string UIWidget = "None"; > = {{-0.84052, -0.073954}, {-0.326235, -0.40583}, {-0.698464, 0.457259}, {-0.203356, 0.620585}, {0.96345, -0.194353}, {0.473434, -0.480026}, {0.519454, 0.767034}, {0.185461, -0.894523}, {0.507351, 0.064963}, {-0.321932, 0.595435}};
- 
+
 uniform int Light0Type : LIGHTTYPE
 <
 	string UIName = "Light 0 Type";
@@ -126,6 +126,13 @@ uniform bool AlbedoTexEnabled
 <
     string UIGroup = "PBR";
     string UIName = "Albedo Texture";
+    int UIOrder = 11;
+> = false;
+
+uniform bool AlbedoSRGEnabled
+<
+    string UIGroup = "PBR";
+    string UIName = "Albedo Texture SRGB?";
     int UIOrder = 11;
 > = false;
 
@@ -292,20 +299,94 @@ uniform float FresnelPower
     int UIOrder = 27;
 > = 0.6;
 
-uniform textureCube CubemapTexture
+uniform bool EnvironmentSRGBEnabled
 <
     string UIGroup = "PBR";
-    string UIName = "IBL Cubemap";
+    string UIName = "Environment Textures SRGB?";
+    int UIOrder = 27;
+> = false;
+
+uniform textureCube EnvironmentTexture
+<
+    string UIGroup = "PBR";
+    string UIName = "IBL Environment Texture";
     string ResourceType = "Cube";
     int UIOrder = 28;
 >;
 
-uniform samplerCube CubemapSampler = sampler_state
+uniform samplerCube EnvironmentSampler = sampler_state
 {
-    Texture = <CubemapTexture>;
+    Texture = <EnvironmentTexture>;
     TEXTURE_MIN_FILTER = LINEAR_MIPMAP_LINEAR;
     TEXTURE_MAG_FILTER = LINEAR;
 };
+
+uniform textureCube SpecularEnvTexture
+<
+    string UIGroup = "PBR";
+    string UIName = "IBL Specular Texture";
+    string ResourceType = "Cube";
+    int UIOrder = 29;
+>;
+
+uniform samplerCube SpecularEnvSampler = sampler_state
+{
+    Texture = <SpecularEnvTexture>;
+    TEXTURE_MIN_FILTER = LINEAR_MIPMAP_LINEAR;
+    TEXTURE_MAG_FILTER = LINEAR;
+};
+
+uniform texture2D BrdfTexture
+<
+    string UIGroup = "PBR";
+    string UIName = "IBL Brdf Texture";
+    string ResourceType = "Cube";
+    int UIOrder = 30;
+>;
+
+uniform sampler2D BrdfSampler = sampler_state
+{
+    Texture = <BrdfTexture>;
+    TEXTURE_MIN_FILTER = LINEAR_MIPMAP_LINEAR;
+    TEXTURE_MAG_FILTER = LINEAR;
+    TEXTURE_WRAP_S = CLAMP_TO_EDGE;
+    TEXTURE_WRAP_T = CLAMP_TO_EDGE;
+    TEXTURE_WRAP_R = CLAMP_TO_EDGE;
+};
+
+uniform float BurleyFactor
+<
+    string UIGroup = "PBR";
+    string UIName = "Burley factor";
+    
+    int UIOrder = 31;
+	float UIMin = 0.01;
+	float UISoftMin = 0.01;
+	float UIMax = 1.00;
+	float UISoftMax = 1.00;
+	float UIStep = 0.01;
+> = 0;
+
+uniform float EnvRotAngle
+<
+    string UIGroup = "PBR";
+    string UIName = "Environment Rotation";
+    string UIWidget = "slider";
+    int UIOrder = 32;
+	float UIMin = 0;
+	float UIMax = 360;
+	float UIStep = 1;
+> = 0;
+
+uniform float MipMapCount 
+<
+    string UIGroup = "PBR";
+    string UIName = "Mip Map Count";
+    string UIWidget = "slider";
+    int UIOrder = 33;
+    float UIMin = 0;
+    float UIMax = 10;
+> = 1;
 
 
 
@@ -341,7 +422,8 @@ GLSLShader VS
 
 GLSLShader FS
 {
-    const float PI = 3.14159265359;
+
+    const float MinRoughnes = 0.04;
 
     float ComputeShadowMap(vec3 worldPos)
     {
@@ -411,7 +493,7 @@ GLSLShader FS
         float nom   = a2;
         float denom = (NdotH2 * (a2 - 1.0) + 1.0);
 
-        denom = PI * denom * denom;
+        denom = M_PI * denom * denom;
 
         return nom / denom;
     }
@@ -442,11 +524,112 @@ GLSLShader FS
         return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
     }
 
+    vec4 RGBMDecode(vec4 rgbm, bool isEncoded) 
+    {
+        return isEncoded ? vec4(6.0 * rgbm.rgb * rgbm.a, rgbm.a) : rgbm;
+    }
+
+    vec3 colorize(vec3 p)
+    {
+        return sign(p) * pow(abs(p), vec3(1)) * 0.5 + vec3(0.5);
+    }
+
+    vec4 SRGBtoLINEAR(vec4 srgbIn)
+    {
+        vec3 linOut = pow(srgbIn.xyz,vec3(2.2));
+        return vec4(linOut,srgbIn.w);;
+    }
+
+    vec4 SRGBtoLINEAR(vec4 colorIn, bool isSRGB)
+    {
+        return isSRGB ? SRGBtoLINEAR(colorIn) : colorIn;
+    }
+
+    vec4 tex2D(sampler2D s, vec2 uv, vec4 defaultColor)
+    {
+        return textureSize(s, 0).x > 1 ? texture(s, uv) : defaultColor;
+    }
+
+    vec3 rotateAboutY(vec3 v, float degrees)
+    {
+        float angle =degrees * M_PI / 180.0;
+        float ca = cos(angle);
+        float sa = sin(angle);
+        return vec3(v.x * ca + v.z * sa, v.y, v.z * ca-v.x * sa);
+    }
+
+    float BurleyToMipSimple(float fPerceptualRoughness, float nMipMax)
+    {
+        // https://docs.knaldtech.com/doku.php?id=specular_lys
+        // approximate remap from LdotR based distribution to NdotH
+        float fScale = fPerceptualRoughness*((1+BurleyFactor) - BurleyFactor*fPerceptualRoughness);    
+        return fScale * nMipMax;
+    }
+
+    vec3 texEnvSpecular(vec3 v)
+    {
+        vec4 color = vec4(0);
+
+        // HACK: It seems Maya passes a single pixel texture when no texture is assigned
+        if (textureSize(SpecularEnvSampler, 0).x > 1)
+        {
+            //int mipMapCount = textureQueryLevels(u_SpecularEnvSampler);
+            
+            float mipMax = max(0, MipMapCount - 1);
+            float lod = BurleyToMipSimple(Roughness, mipMax);
+            
+            v = rotateAboutY(v, EnvRotAngle);
+
+            color = textureLod(SpecularEnvSampler, v, lod);
+
+            color = SRGBtoLINEAR(RGBMDecode(color, false), EnvironmentSRGBEnabled);
+        }
+
+        return color.rgb;
+    }
+
+    vec3 texEnvDiffuse(vec3 v)
+    {
+        vec4 color = vec4(0);
+
+        // HACK: It seems Maya passes a single pixel texture when no texture is assigned
+        int size = textureSize(EnvironmentSampler, 0).x;
+        if (size > 1)
+        {
+            // TODO: Diffuse LOD
+            const float lod = 0;
+
+            v = rotateAboutY(v, EnvRotAngle);
+
+
+            color = textureLod(EnvironmentSampler, v, lod);
+            color = SRGBtoLINEAR(RGBMDecode(color, false), false);
+        }
+
+        return color.rgb;
+    }
+
+    vec3 ComputeIBLContribution(float NdotV, vec3 albedo, vec3 specularColor, vec3 n, vec3 reflection)
+    {
+        vec3 brdf = SRGBtoLINEAR(tex2D(BrdfSampler, vec2(NdotV, 1.0 - Roughness), vec4(0)), EnvironmentSRGBEnabled).rgb;
+        vec3 diffuseLight = texEnvDiffuse(n);
+        vec3 specularLight = texEnvSpecular(reflection);
+
+        vec3 diffuse = diffuseLight * albedo;
+        vec3 specular = specularLight * (specularColor * brdf.x + brdf.y);
+
+
+        return diffuse + specular;
+    }
+
+
     void main()
     {
         vec3 N = normalize(outWorldNormal).xyz;
         vec3 V = normalize(outCameraPos.xyz - outWorldPos.xyz);
         vec3 lightDir = normalize(-Light0Dir);
+        vec3 reflectionVector = normalize(-reflect(V, N));
+        
 
         vec2 uv = outUV;
 
@@ -456,7 +639,8 @@ GLSLShader FS
         float ao = AO;
         
         if (AlbedoTexEnabled) {
-            albedo = pow(texture(AlbedoSampler, uv).rgb, vec3(2.2));
+            vec4 srgbTex = SRGBtoLINEAR(texture(AlbedoSampler, uv), AlbedoSRGEnabled);
+            albedo = pow(srgbTex.rgb, vec3(2.2));
         }
 
         if (MetallicTexEnabled) {
@@ -507,7 +691,7 @@ GLSLShader FS
         vec3 kD = vec3(1.0) - kS;
         kD *= 1.0 - metallic;
         float NdotL = max(dot(N, L), 0.0);   
-        Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+        Lo += (kD * albedo / M_PI + specular) * radiance * NdotL;
 
         vec3 ambient = vec3(0.03) * albedo * ao;
 
@@ -517,7 +701,13 @@ GLSLShader FS
 
         float shadowMap = ComputeShadowMap(outWorldPos.xyz);
 
+
+        vec3 specularColor = mix(F0, albedo, metallic);
+        vec3 ibl = ComputeIBLContribution(dot(N,V), albedo, specularColor, N, reflectionVector);
+
+
         outColor = vec4(color, 1.0);
+        outColor.rgb += ibl;
         outColor *= Light0Intensity * shadowMap;
     }
 }
