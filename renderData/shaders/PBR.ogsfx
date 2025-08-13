@@ -566,7 +566,7 @@ GLSLShader FS
         return fScale * nMipMax;
     }
 
-    vec3 texEnvSpecular(vec3 v)
+    vec3 texEnvSpecular(vec3 v, float roughness)
     {
         vec4 color = vec4(0);
 
@@ -576,7 +576,7 @@ GLSLShader FS
             //int mipMapCount = textureQueryLevels(u_SpecularEnvSampler);
             
             float mipMax = max(0, MipMapCount - 1);
-            float lod = BurleyToMipSimple(Roughness, mipMax);
+            float lod = BurleyToMipSimple(roughness, mipMax);
             
             v = rotateAboutY(v, EnvRotAngle);
 
@@ -609,11 +609,11 @@ GLSLShader FS
         return color.rgb;
     }
 
-    vec3 ComputeIBLContribution(float NdotV, vec3 albedo, vec3 specularColor, vec3 n, vec3 reflection)
+    vec3 ComputeIBLContribution(float NdotV, vec3 albedo, vec3 specularColor, vec3 n, vec3 reflection, float roughness)
     {
-        vec3 brdf = SRGBtoLINEAR(tex2D(BrdfSampler, vec2(NdotV, 1.0 - Roughness), vec4(0)), EnvironmentSRGBEnabled).rgb;
+        vec3 brdf = SRGBtoLINEAR(tex2D(BrdfSampler, vec2(NdotV, 1.0 - roughness), vec4(0)), EnvironmentSRGBEnabled).rgb;
         vec3 diffuseLight = texEnvDiffuse(n);
-        vec3 specularLight = texEnvSpecular(reflection);
+        vec3 specularLight = texEnvSpecular(reflection, roughness);
 
         vec3 diffuse = diffuseLight * albedo;
         vec3 specular = specularLight * (specularColor * brdf.x + brdf.y);
@@ -644,11 +644,11 @@ GLSLShader FS
         }
 
         if (MetallicTexEnabled) {
-            metallic = texture(MetallicSampler, uv).r;
+            metallic = texture(MetallicSampler, uv).r * Metallic;
         }
 
         if (RoughnessTexEnabled) {
-            roughness = texture(RoughnessSampler, uv).r;
+            roughness = texture(RoughnessSampler, uv).r * Roughness;
         }
 
         if (AOTexEnabled) {
@@ -703,7 +703,7 @@ GLSLShader FS
 
 
         vec3 specularColor = mix(F0, albedo, metallic);
-        vec3 ibl = ComputeIBLContribution(dot(N,V), albedo, specularColor, N, reflectionVector);
+        vec3 ibl = ComputeIBLContribution(dot(N,V), albedo, specularColor, N, reflectionVector, roughness);
 
 
         outColor = vec4(color, 1.0);
