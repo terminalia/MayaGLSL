@@ -18,7 +18,7 @@ uniform float FarPlane
 	string UIWidget = "slider";
 	string UIName = "Shadow Strength";
 	float UIMin = 0;
-	float UIMax = 1000;
+	float UIMax = 1;
 > = 0;
 
 
@@ -35,7 +35,7 @@ attribute fOutput
     vec4 outColor : COLOR0;
 }
 
-GLSLShader VS
+GLSLShader VSCameraDist
 {
     void main()
     {
@@ -44,7 +44,19 @@ GLSLShader VS
     }
 }
 
-GLSLShader FS
+GLSLShader VSObjectDist
+{
+    void main()
+    {
+        vec4 farPos = World * vec4(aPosition.x, FarPlane, aPosition.z, 1.0);
+        vec4 worldPos = World * aPosition;
+        float dist = distance(normalize(worldPos), normalize(farPos));
+        outZDepth = clamp(dist, 0.0, 1.0);
+        gl_Position = WorldViewProjection * aPosition;
+    }
+}
+
+GLSLShader FSCameraDist
 {
 
     void main()
@@ -54,11 +66,20 @@ GLSLShader FS
 }
 
 
-technique Main
+technique CameraDist
 {
     pass p0
     {
-        VertexShader (in appdata, out vOutput) = VS;
-        PixelShader (in vOutput, out fOutput) = FS;
+        VertexShader (in appdata, out vOutput) = VSCameraDist;
+        PixelShader (in vOutput, out fOutput) = FSCameraDist;
+    }
+}
+
+technique ObjectDist
+{
+    pass p0
+    {
+        VertexShader (in appdata, out vOutput) = VSObjectDist;
+        PixelShader (in vOutput, out fOutput) = FSCameraDist;
     }
 }
