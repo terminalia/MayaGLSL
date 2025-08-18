@@ -16,7 +16,16 @@ uniform float FarPlane
 <
     string UIGroup = "Z-Depth";
 	string UIWidget = "slider";
-	string UIName = "Shadow Strength";
+	string UIName = "Far Plane (Camera Dist)";
+	float UIMin = 0;
+	float UIMax = 1000;
+> = 0;
+
+uniform float FarObjectHeight
+<
+    string UIGroup = "Z-Depth";
+	string UIWidget = "slider";
+	string UIName = "Far Object Height (Object Dist)";
 	float UIMin = 0;
 	float UIMax = 1;
 > = 0;
@@ -48,7 +57,7 @@ GLSLShader VSObjectDist
 {
     void main()
     {
-        vec4 farPos = World * vec4(aPosition.x, FarPlane, aPosition.z, 1.0);
+        vec4 farPos = World * vec4(aPosition.x, FarObjectHeight, aPosition.z, 1.0);
         vec4 worldPos = World * aPosition;
         float dist = distance(normalize(worldPos), normalize(farPos));
         outZDepth = clamp(dist, 0.0, 1.0);
