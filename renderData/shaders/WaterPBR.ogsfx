@@ -491,6 +491,16 @@ uniform float GradientOffset
 	int UIOrder = 43;
 > = 0.0;
 
+uniform float FarObjectHeight
+<
+    string UIGroup = "Displacement";
+	string UIWidget = "slider";
+	string UIName = "Far Object Height";
+	float UIMin = 0;
+	float UIMax = 1;
+    int UIOrder = 44;
+> = 0;
+
 //-------------------------------------------------------------------------------------
 // TRANSPARENCY
 
@@ -516,6 +526,7 @@ attribute vOutput {
     vec4 outWorldPos : TEXCOORD1;
     vec4 outCameraPos : TEXCOORD2;
     vec4 outVertColor : COLOR;
+    float outYDepth;
 };
 
 attribute fOutput 
@@ -549,6 +560,9 @@ GLSLShader VS
         inPosition.xyz += aNormal * displacementTex.r * DisplacementAmount;
 
         outWorldPos = World * inPosition;
+        vec4 farPos = World * vec4(inPosition.x, FarObjectHeight, inPosition.z, 1.0);
+        float dist = distance(normalize(outWorldPos), normalize(farPos));
+        outYDepth = clamp(dist, 0.0, 1.0);
         outWorldNormal = (WorldInverseTranspose, vec4(aNormal.xyz, 0.0));
         //outWorldNormal = vec4(calc_normal(uv, DisplacementAmount, DisplacementSampler), 0);
         
@@ -801,7 +815,7 @@ GLSLShader FS
         //     albedo = pow(lerp(albedo.rgb, gradientTex.rgb, 1.0), vec3(2.2));
         // }
 
-        albedo = pow(lerp(albedo.rgb, gradientTex.rgb, 0.5), vec3(2.2));
+        albedo = pow(lerp(albedo.rgb, gradientTex.rgb, outYDepth), vec3(2.2));
 
         if (MetallicTexEnabled) {
             metallic = texture(MetallicSampler, uv).r * Metallic;
@@ -868,8 +882,18 @@ GLSLShader FS
 
         outColor = vec4(color, 1.0);
         outColor.rgb += ibl;
-        outColor *= Light0Intensity * shadowMap;
-        outColor.a = OpacityStrength;
+        outColor *= Light0Intensity * shadowMap * outYDepth;
+        outColor.a = OpacityStrength * outYDepth;
+    }
+}
+
+GLSLShader FSDepth
+{
+
+    void main()
+    {
+        float yDepth = 1 - outYDepth;
+        outColor = vec4(yDepth, yDepth, yDepth, 1.0);
     }
 }
 
@@ -882,6 +906,14 @@ technique Opaque
     }
 }
 
+technique Depth
+{
+    pass p0
+    {
+        VertexShader (in appdata, out vOutput) = VS;
+        PixelShader (in vOutput, out fOutput) = FSDepth;
+    }
+}
 
 technique Transparent
 <
